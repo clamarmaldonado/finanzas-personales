@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Movimientos de Caja</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#5D5346" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#5D5346; --surface:#6D6252; --border:#8D8068;
+    --text:#F8F3E8; --text-dim:#CABEA7;
+    --accent:#F0A83C; --sage:#5FA379; --blue:#5D89AC; --danger:#D6564A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:440px; margin:0 auto; padding:24px 16px 48px;}
+  .eyebrow{font-size:12px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dim);}
+  h1{font-size:24px; font-weight:600; letter-spacing:-0.01em; margin:4px 0 20px;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .card{background:var(--surface); border:1px solid var(--border); padding:16px; margin-bottom:16px;}
+  .row{display:flex; align-items:center; justify-content:space-between;}
+  .streak-num{font-size:30px; font-weight:600;}
+  .punch-row{display:flex; justify-content:space-between; margin-top:4px;}
+  .punch{display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .dot{width:32px; height:32px; border-radius:50%; border:2px solid var(--border);}
+  .dot.logged{background:var(--accent); border-color:var(--accent);}
+  .dot.nospend{background:transparent; border-color:var(--sage);}
+  .dot.missed{background:transparent; border-color:var(--danger);}
+  .dot.pending{background:transparent; border-color:var(--text-dim); border-style:dashed;}
+  .daylabel{font-size:12px; color:var(--text-dim);}
+  input[type=number], input[type=text]{
+    width:100%; padding:12px; margin-bottom:12px; font-size:18px;
+    background:var(--bg); border:1px solid var(--border); color:var(--text);
+    outline:none; font-family:'IBM Plex Mono', monospace;
+  }
+  input[type=text]{font-family:'IBM Plex Sans', sans-serif; font-size:14px;}
+  .tipo-row{display:flex; gap:8px; margin-bottom:12px;}
+  .tipo-btn{
+    flex:1; padding:12px; font-size:14px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+  }
+  .tipo-btn.active.gasto{background:var(--danger); border-color:var(--danger); color:var(--bg);}
+  .tipo-btn.active.ingreso{background:var(--sage); border-color:var(--sage); color:var(--bg);}
+  .methods{display:flex; gap:8px; margin-bottom:12px;}
+  .method-btn{
+    flex:1; padding:10px; font-size:13px; font-weight:500;
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+  }
+  .cat-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;}
+  .cat-btn{
+    padding:7px 3px; font-size:11.5px; font-weight:500;
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    text-align:center;
+  }
+  .cat-btn.active{background:var(--accent); border-color:var(--accent); color:var(--bg);}
+  button{font-family:inherit; cursor:pointer;}
+  .btn-primary{
+    width:100%; padding:14px; font-size:14px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.05em;
+    background:var(--accent); color:var(--bg); border:none;
+  }
+  .btn-primary:disabled{opacity:.4;}
+  .btn-secondary{
+    width:100%; padding:10px; font-size:13px; margin-top:8px;
+    background:transparent; color:var(--sage); border:1px solid var(--sage);
+  }
+  .btn-secondary:disabled{opacity:.35; color:var(--text-dim); border-color:var(--border);}
+  .entry-row{display:flex; align-items:center; justify-content:space-between; font-size:14px; padding:6px 0;}
+  .entry-left{display:flex; flex-direction:column;}
+  .entry-cat{font-size:12px; color:var(--text-dim);}
+  .swatch{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .empty{color:var(--text-dim); font-size:14px;}
+  .warn{color:var(--danger); font-size:12px; margin-top:8px;}
+  .balance-row{display:flex; justify-content:space-between; font-size:13px; margin-top:8px; color:var(--text-dim);}
+  .scan-btn{
+    width:100%; padding:12px; font-size:14px; font-weight:600; margin-bottom:14px;
+    background:transparent; border:1px dashed var(--text-dim); color:var(--text);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .scan-btn:disabled{opacity:.5;}
+  .scan-status{font-size:12px; color:var(--text-dim); margin:-8px 0 14px; text-align:center;}
+  .scan-preview{display:flex; align-items:center; gap:10px; margin:-8px 0 14px;}
+  .scan-preview img{width:56px; height:56px; object-fit:cover; border:1px solid var(--border);}
+  .cat-btn.suggested{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); position:relative;}
+  .cat-btn.suggested::after{content:'sugerida'; position:absolute; top:-8px; right:4px; font-size:9px; background:var(--accent); color:var(--bg); padding:1px 4px;}
+  details.scan-raw{margin:-8px 0 14px; font-size:12px; color:var(--text-dim);}
+  details.scan-raw summary{cursor:pointer;}
+  details.scan-raw pre{white-space:pre-wrap; font-family:'IBM Plex Mono', monospace; font-size:11px; margin-top:6px;}
+  .currency-row{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .currency-badge{
+    display:flex; align-items:center; gap:6px; padding:8px 10px; font-size:12px; font-weight:600;
+    background:var(--sage); color:var(--bg); flex-shrink:0;
+  }
+  .currency-badge .dot{width:7px; height:7px; border-radius:50%; background:var(--bg);}
+  .currency-select{
+    flex:1; padding:8px; font-size:12px; background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .fx-primary{font-size:20px; font-weight:600; font-family:'IBM Plex Mono', monospace;}
+  .fx-updated{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .fx-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; font-size:12px;}
+  .fx-grid div{color:var(--text-dim);}
+  .fx-grid b{color:var(--text); font-family:'IBM Plex Mono', monospace; font-weight:500;}
+  .usd-eq{font-size:11px; color:var(--blue); margin-top:2px;}
+  .entry-actions{display:flex; gap:4px; margin-left:8px;}
+  .entry-actions button{
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    width:26px; height:26px; font-size:12px; padding:0; line-height:1;
+  }
+  .entry-actions button:hover{color:var(--text);}
+  .day-nospend-row{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--sage);}
+  .history-row{
+    display:flex; justify-content:space-between; align-items:center; width:100%;
+    background:none; border:none; border-bottom:1px solid var(--border);
+    color:var(--text); font-family:inherit; font-size:13px; padding:9px 0; cursor:pointer; text-align:left;
+  }
+  .history-row:last-child{border-bottom:none;}
+  .history-row.active{color:var(--accent);}
+  .history-row .entry-cat{font-size:11px;}
+  .cat-summary-row{margin-bottom:9px;}
+  .cat-summary-label{display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;}
+  .cat-summary-bar{height:5px; background:var(--border); overflow:hidden;}
+  .cat-summary-bar-fill{height:100%;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Ficha diaria</div>
+  <div class="row">
+    <h1 style="margin:4px 0 20px;">Movimientos de Caja</h1>
+    <span class="mono eyebrow" id="todayLabel"></span>
+  </div>
+
+  <div id="backupWarning" style="display:none; background:var(--danger); color:var(--bg); font-size:12px; font-weight:600; padding:10px 12px; margin-bottom:16px;"></div>
+
+  <div class="card row">
+    <div>
+      <div class="eyebrow">Racha</div>
+      <div class="streak-num mono" id="streakNum">0 días</div>
+    </div>
+    <div class="warn" id="streakWarn" style="max-width:9rem; text-align:right;"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px;">Tarjeta semanal</div>
+    <div class="punch-row" id="punchRow"></div>
+    <div class="eyebrow mono" style="margin-top:12px; text-transform:none; letter-spacing:0;">
+      Total 7 días: <span id="weekTotal" style="color:var(--text);">$0</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <div class="eyebrow">Referencia dólar oficial</div>
+        <div class="fx-primary mono" id="fxPrimary">—</div>
+        <div class="fx-updated" id="fxUpdated"></div>
+      </div>
+      <button class="btn-secondary" id="fxRefreshBtn" style="width:auto; padding:8px 12px; margin-top:0;">Actualizar</button>
+    </div>
+    <details>
+      <summary class="eyebrow" style="cursor:pointer; margin-top:10px;">Ver blue / MEP / CCL</summary>
+      <div class="fx-grid" id="fxGrid"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px;">Fichar movimiento</div>
+
+    <div class="tipo-row" id="tipoRow"></div>
+
+    <button class="scan-btn" id="scanBtn" type="button">📷 Escanear ticket</button>
+    <input type="file" accept="image/*" capture="environment" id="ticketInput" style="display:none;" />
+    <div class="scan-status" id="scanStatus"></div>
+    <div class="scan-preview" id="scanPreview" style="display:none;">
+      <img id="scanThumb" alt="Ticket escaneado" />
+      <span class="eyebrow" style="text-transform:none; letter-spacing:0;">Revisá el monto contra la foto antes de fichar.</span>
+    </div>
+    <details class="scan-raw" id="scanRawWrap" style="display:none;">
+      <summary>Ver texto que leyó el OCR</summary>
+      <pre id="scanRawText"></pre>
+    </details>
+
+    <div class="currency-row">
+      <span class="currency-badge" id="currencyBadge"><span class="dot"></span><span id="currencyBadgeText">ARS</span></span>
+      <select class="currency-select" id="currencySelect"></select>
+    </div>
+    <input type="text" inputmode="decimal" id="amountInput" placeholder="Monto" />
+
+    <div class="methods" id="methodsRow"></div>
+
+    <div class="eyebrow" style="margin-bottom:8px;">Categoría (obligatoria)</div>
+    <div class="cat-grid" id="catGrid"></div>
+    <select id="catExtSelect" class="mono" style="width:100%; padding:10px; margin-bottom:12px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-family:'IBM Plex Sans', sans-serif; font-size:13px;">
+      <option value="">Más categorías…</option>
+    </select>
+
+    <input type="text" id="notaInput" placeholder="Nota (opcional, no reemplaza la categoría)" />
+    <button class="btn-primary" id="ficharBtn">Fichar movimiento</button>
+    <button class="btn-secondary" id="cancelEditBtn" style="display:none; color:var(--danger); border-color:var(--danger);">Cancelar edición</button>
+    <button class="btn-secondary" id="noSpendBtn">Marcar día sin movimientos</button>
+    <div class="warn" id="saveErr"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:4px; align-items:flex-start;">
+      <span class="eyebrow" id="reviewLabel">Hoy</span>
+      <input type="date" id="reviewDateInput" class="mono" style="background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; font-size:12px;" />
+    </div>
+    <div class="row" style="margin-bottom:4px;">
+      <span class="mono" id="todayBalance">$0</span>
+      <button class="btn-secondary" id="backTodayBtn" style="display:none; width:auto; padding:6px 10px; margin-top:0; font-size:11px;">Volver a hoy</button>
+    </div>
+    <div class="balance-row">
+      <span>Ingresos: <span class="mono" id="todayIngresos" style="color:var(--sage);">$0</span></span>
+      <span>Gastos: <span class="mono" id="todayGastos" style="color:var(--danger);">$0</span></span>
+    </div>
+    <div id="entriesList" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px;">Historial</div>
+    <div id="historyList" style="max-height:280px; overflow-y:auto;"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:10px;">
+      <span class="eyebrow">Resumen mensual</span>
+      <input type="month" id="resumenMesInput" class="mono" style="background:var(--bg); border:1px solid var(--border); color:var(--text); padding:4px 6px; font-size:12px;" />
+    </div>
+    <div class="balance-row" style="margin-bottom:6px;">
+      <span>Ingresos: <span class="mono" id="resumenIngresos" style="color:var(--sage);">$0</span></span>
+      <span>Gastos: <span class="mono" id="resumenGastos" style="color:var(--danger);">$0</span></span>
+    </div>
+    <div class="mono" id="resumenBalance" style="font-size:19px; font-weight:600; margin-bottom:16px;">$0</div>
+    <div class="eyebrow" style="margin-bottom:8px;">Gastos por categoría</div>
+    <div id="resumenCatGastos"></div>
+    <div class="eyebrow" style="margin:16px 0 8px;">Ingresos por categoría</div>
+    <div id="resumenCatIngresos"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px;">Respaldo y exportación</div>
+    <button class="btn-primary" id="exportXlsxBtn" style="margin-bottom:8px;">Descargar Excel (.xlsx)</button>
+    <button class="btn-secondary" id="exportCsvBtn" style="color:var(--text-dim); border-color:var(--border);">Exportar CSV (para otros programas)</button>
+    <button class="btn-secondary" id="exportJsonBtn" style="color:var(--blue); border-color:var(--blue);">Descargar respaldo completo (JSON)</button>
+    <label class="btn-secondary" for="importFile" style="display:block; text-align:center; margin-top:8px; color:var(--text-dim); border-color:var(--border);">
+      Restaurar desde un respaldo
+    </label>
+    <input type="file" id="importFile" accept="application/json" style="display:none;" />
+    <div class="empty" style="margin-top:10px; font-size:12px;">
+      El CSV incluye tipo y categoría, listo para tablas dinámicas en Excel/Sheets.
+    </div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary class="eyebrow" style="cursor:pointer;">¿Cómo actualizo esta ficha?</summary>
+      <div style="margin-top:10px; font-size:13px; color:var(--text); line-height:1.5;">
+        <p style="margin:0 0 8px;">Esta ficha vive en un repositorio de GitHub llamado <b class="mono">Movimientos-de-caja</b>, publicado con GitHub Pages. Para actualizarla con una versión nueva del archivo:</p>
+        <ol style="margin:0 0 8px; padding-left:18px;">
+          <li style="margin-bottom:6px;">Entrá a tu repositorio <span class="mono">Movimientos-de-caja</span> en github.com.</li>
+          <li style="margin-bottom:6px;">Tocá el archivo <span class="mono">index.html</span> existente.</li>
+          <li style="margin-bottom:6px;">Usá el ícono de editar (lápiz) o "Add file → Upload files" para reemplazarlo por la versión nueva.</li>
+          <li style="margin-bottom:6px;">Confirmá el cambio (commit). GitHub Pages se actualiza solo, normalmente en menos de un minuto.</li>
+        </ol>
+        <p style="margin:0 0 8px; color:var(--text-dim);">Los datos que ya cargaste no se pierden: viven en el navegador de tu teléfono, atados a esta dirección web, no al archivo en sí.</p>
+        <p style="margin:0; color:var(--text-dim);">Si después de actualizar seguís viendo la versión vieja: cerrá la app del todo (no solo minimizarla) y volvé a abrirla, o entrá una vez desde Safari directo a la URL para forzar la descarga de lo nuevo.</p>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script>
+const METODOS_GASTO = [
+  { id:'efectivo', label:'Efectivo' },
+  { id:'debito', label:'Débito' },
+  { id:'credito', label:'Crédito' },
+];
+const METODOS_INGRESO = [
+  { id:'efectivo', label:'Efectivo' },
+  { id:'transferencia', label:'Transferencia' },
+];
+const CATS_GASTO = ['Comida','Transporte','Vivienda/Servicios','Salud','Ocio','Indumentaria','Educación','Otro'];
+const CATS_INGRESO = ['Sueldo','Freelance','Reembolso','Regalo','Otro'];
+const CATS_GASTO_EXT = ['Mascotas','Cuidado personal','Regalos','Suscripciones','Impuestos','Seguros','Reparaciones/Mantenimiento','Tecnología','Deportes','Cultura (libros/cine/música)','Bebés/Niños','Donaciones','Viajes','Comisiones bancarias','Delivery','Bar/Café'];
+const CATS_INGRESO_EXT = ['Alquiler cobrado','Venta de artículos','Intereses/Inversiones','Aguinaldo','Bono','Préstamo recibido','Reintegro de impuestos','Herencia'];
+const MONEDAS = ['ARS','USD','EUR','BRL','CLP','UYU'];
+const NOMBRES_MONEDA = {
+  ARS:'Peso argentino', USD:'Dólar estadounidense', EUR:'Euro', BRL:'Real brasileño',
+  CLP:'Peso chileno', UYU:'Peso uruguayo'
+};
+const DIAS = ['D','L','M','X','J','V','S'];
+const STORE_KEY = 'ficha-gastos-ledger';
+const FX_KEY = 'ficha-gastos-fx';
+const FX_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+function dateStr(offset=0){
+  const d = new Date(); d.setDate(d.getDate()-offset);
+  return d.toISOString().slice(0,10);
+}
+function dayLabel(offset){
+  const d = new Date(); d.setDate(d.getDate()-offset);
+  return DIAS[d.getDay()];
+}
+function loadLedger(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    const l = raw ? JSON.parse(raw) : {};
+    let cambiado = false;
+    Object.keys(l).forEach(dstr=>{
+      (l[dstr].entries||[]).forEach(e=>{
+        if(!e.id){ e.id = 'e' + Date.now() + Math.random().toString(36).slice(2,8); cambiado = true; }
+      });
+    });
+    if(cambiado){
+      try{ localStorage.setItem(STORE_KEY, JSON.stringify(l)); }catch(err){}
+    }
+    return l;
+  }catch(e){ return {}; }
+}
+function saveLedger(l){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(l));
+    document.getElementById('saveErr').textContent = '';
+  }catch(e){
+    document.getElementById('saveErr').textContent = 'No se pudo guardar en este navegador.';
+  }
+}
+
+let ledger = loadLedger();
+let tipo = 'gasto';
+let metodo = 'efectivo';
+let categoria = null;
+let categoriaSugerida = null;
+let moneda = 'ARS';
+let fxCache = loadFxCache();
+let reviewDate = dateStr(0);
+let editing = null; // { dstr, id } cuando estamos corrigiendo un movimiento existente
+let pendingDelete = null; // id del movimiento que está pidiendo confirmación para borrarse
+let entriesExpanded = false; // si la lista de movimientos del día está desplegada del todo
+const today = dateStr(0);
+
+function loadFxCache(){
+  try{
+    const raw = localStorage.getItem(FX_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveFxCache(fx){
+  fxCache = fx;
+  try{ localStorage.setItem(FX_KEY, JSON.stringify(fx)); }catch(e){}
+}
+
+async function fetchFx(force){
+  if(!force && fxCache && (Date.now() - fxCache.fetchedAt) < FX_MAX_AGE_MS) return;
+  try{
+    const [oficial, blue, bolsa, ccl, eur, brl, clp, uyu] = await Promise.all([
+      fetch('https://dolarapi.com/v1/dolares/oficial').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/dolares/blue').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/dolares/bolsa').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/dolares/contadoconliqui').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/eur').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/brl').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/clp').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/uyu').then(r=>r.json()),
+    ]);
+    saveFxCache({
+      USD: oficial.venta, blue: blue.venta, mep: bolsa.venta, ccl: ccl.venta,
+      EUR: eur.venta, BRL: brl.venta, CLP: clp.venta, UYU: uyu.venta,
+      fecha: oficial.fechaActualizacion, fetchedAt: Date.now()
+    });
+  }catch(e){
+    // sin internet o API caída: seguimos con lo que haya en caché (puede ser null)
+  }
+  renderFx();
+}
+
+function renderFx(){
+  const primary = document.getElementById('fxPrimary');
+  const updated = document.getElementById('fxUpdated');
+  const grid = document.getElementById('fxGrid');
+  if(!fxCache){
+    primary.textContent = 'Sin datos';
+    updated.textContent = 'No se pudo obtener la cotización todavía.';
+    grid.innerHTML = '';
+    return;
+  }
+  primary.textContent = '$' + fxCache.USD.toLocaleString('es-AR');
+  const fecha = new Date(fxCache.fecha || fxCache.fetchedAt);
+  updated.textContent = 'Actualizado ' + fecha.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  grid.innerHTML = `
+    <div>Blue: <b>$${fxCache.blue.toLocaleString('es-AR')}</b></div>
+    <div>MEP: <b>$${fxCache.mep.toLocaleString('es-AR')}</b></div>
+    <div>CCL: <b>$${fxCache.ccl.toLocaleString('es-AR')}</b></div>
+    <div>Euro: <b>$${fxCache.EUR.toLocaleString('es-AR')}</b></div>
+  `;
+}
+
+// tasa (en ARS) de una moneda al momento de fichar, usando la última cotización cacheada
+function tasaActual(mon){
+  if(mon==='ARS') return 1;
+  if(!fxCache) return null;
+  return fxCache[mon] ?? null;
+}
+
+// convierte una entrada a su equivalente en ARS, usando la tasa guardada en el momento en que se fichó
+function montoEnARS(e){
+  if(!e.moneda || e.moneda==='ARS') return e.amount;
+  if(e.fxRateARS) return e.amount * e.fxRateARS;
+  return e.amount; // fallback para datos viejos sin cotización: se toma como si fuera ARS, queda marcado en la UI
+}
+
+// equivalente en USD de un movimiento, usando la cotización oficial guardada en el momento exacto de fichar (no la de hoy)
+function usdEquivalente(e){
+  const ars = montoEnARS(e);
+  if(!e.usdRateAtEntry) return null;
+  return ars / e.usdRateAtEntry;
+}
+
+function dayEntry(dstr){ return ledger[dstr] || { entries: [], noSpend: false }; }
+
+function metodosActuales(){ return tipo==='gasto' ? METODOS_GASTO : METODOS_INGRESO; }
+function catsActuales(){ return tipo==='gasto' ? CATS_GASTO : CATS_INGRESO; }
+function catsExtendidasActuales(){ return tipo==='gasto' ? CATS_GASTO_EXT : CATS_INGRESO_EXT; }
+
+function renderForm(){
+  const tipoRow = document.getElementById('tipoRow');
+  tipoRow.innerHTML = '';
+  [['gasto','Gasto'],['ingreso','Ingreso']].forEach(([id,label])=>{
+    const btn = document.createElement('button');
+    btn.className = 'tipo-btn' + (tipo===id ? ' active '+id : '');
+    btn.textContent = label;
+    btn.onclick = ()=>{
+      tipo = id;
+      metodo = metodosActuales()[0].id;
+      categoria = null;
+      categoriaSugerida = null;
+      renderForm();
+    };
+    tipoRow.appendChild(btn);
+  });
+
+  const methodsRow = document.getElementById('methodsRow');
+  methodsRow.innerHTML = '';
+  metodosActuales().forEach(m=>{
+    const btn = document.createElement('button');
+    btn.className = 'method-btn' + (metodo===m.id ? ' active' : '');
+    btn.textContent = m.label;
+    btn.style.background = metodo===m.id ? 'var(--blue)' : 'transparent';
+    btn.style.color = metodo===m.id ? 'var(--bg)' : 'var(--text-dim)';
+    btn.style.borderColor = metodo===m.id ? 'var(--blue)' : 'var(--border)';
+    btn.onclick = ()=>{ metodo = m.id; renderForm(); };
+    methodsRow.appendChild(btn);
+  });
+
+  const catGrid = document.getElementById('catGrid');
+  catGrid.innerHTML = '';
+  catsActuales().forEach(c=>{
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (categoria===c ? ' active' : '') + (categoriaSugerida===c && categoria!==c ? ' suggested' : '');
+    btn.textContent = c;
+    btn.onclick = ()=>{ categoria = c; renderForm(); };
+    catGrid.appendChild(btn);
+  });
+
+  const catExtSelect = document.getElementById('catExtSelect');
+  const extList = catsExtendidasActuales();
+  catExtSelect.innerHTML = '<option value="">Más categorías…</option>' +
+    extList.map(c=>`<option value="${c}"${categoria===c ? ' selected' : ''}>${c}</option>`).join('');
+  if(!extList.includes(categoria)) catExtSelect.value = '';
+  catExtSelect.onchange = (ev)=>{
+    if(ev.target.value){ categoria = ev.target.value; renderForm(); }
+  };
+
+  document.getElementById('currencyBadgeText').textContent = moneda + ' · ' + NOMBRES_MONEDA[moneda];
+  const currencySelect = document.getElementById('currencySelect');
+  currencySelect.innerHTML = MONEDAS.map(m=>`<option value="${m}"${moneda===m?' selected':''}>${m} — ${NOMBRES_MONEDA[m]}</option>`).join('');
+  currencySelect.onchange = (ev)=>{ moneda = ev.target.value; renderForm(); };
+
+  const amountInput = document.getElementById('amountInput');
+  document.getElementById('ficharBtn').disabled = !amountInput.value || parseFloat(amountInput.value) <= 0 || !categoria;
+
+  const noSpendBtn = document.getElementById('noSpendBtn');
+  const hayMovimientos = dayEntry(reviewDate).entries.length > 0;
+  noSpendBtn.disabled = hayMovimientos;
+  noSpendBtn.title = hayMovimientos ? 'Ya hay movimientos cargados ese día. Borralos primero si querés marcarlo como sin movimientos.' : '';
+}
+
+function render(){
+  document.getElementById('todayLabel').textContent = today;
+
+  const realToday = dayEntry(today);
+  const todayQualifies = realToday.entries.length > 0 || realToday.noSpend;
+  const t = dayEntry(reviewDate);
+
+  let streak = 0;
+  let cursor = todayQualifies ? 0 : 1;
+  while(true){
+    const d = dayEntry(dateStr(cursor));
+    if(d.entries.length>0 || d.noSpend){ streak++; cursor++; } else break;
+    if(cursor>365) break;
+  }
+  document.getElementById('streakNum').textContent = streak + (streak===1?' día':' días');
+  document.getElementById('streakNum').style.color = streak>0 ? 'var(--accent)' : 'var(--text-dim)';
+  document.getElementById('streakWarn').textContent = todayQualifies ? '' : 'Hoy todavía no fichaste. La racha se corta a medianoche.';
+
+  const punchRow = document.getElementById('punchRow');
+  punchRow.innerHTML = '';
+  let weekGastos = 0, weekIngresos = 0;
+  for(let offset=6; offset>=0; offset--){
+    const dstr = dateStr(offset);
+    const d = dayEntry(dstr);
+    d.entries.forEach(e=>{
+      const ars = montoEnARS(e);
+      if(e.tipo==='ingreso') weekIngresos += ars; else weekGastos += ars;
+    });
+    let status = 'missed';
+    if(offset===0 && !todayQualifies) status='pending';
+    else if(d.noSpend) status='nospend';
+    else if(d.entries.length>0) status='logged';
+    const col = document.createElement('div');
+    col.className = 'punch';
+    col.innerHTML = `<div class="dot ${status}"></div><span class="daylabel">${dayLabel(offset)}</span>`;
+    punchRow.appendChild(col);
+  }
+  const weekNeto = weekIngresos - weekGastos;
+  const tasaHoy = tasaActual('USD');
+  document.getElementById('weekTotal').textContent = '$' + weekNeto.toLocaleString('es-AR') + ' (ingr. $' + weekIngresos.toLocaleString('es-AR') + ' / gast. $' + weekGastos.toLocaleString('es-AR') + ')' + (tasaHoy ? ' ≈ US$' + Math.round(weekNeto/tasaHoy).toLocaleString('es-AR') : '');
+
+  const todayGastos = t.entries.filter(e=>e.tipo!=='ingreso').reduce((s,e)=>s+montoEnARS(e),0);
+  const todayIngresos = t.entries.filter(e=>e.tipo==='ingreso').reduce((s,e)=>s+montoEnARS(e),0);
+  document.getElementById('todayGastos').textContent = '$' + todayGastos.toLocaleString('es-AR');
+  document.getElementById('todayIngresos').textContent = '$' + todayIngresos.toLocaleString('es-AR');
+  const todayNeto = todayIngresos - todayGastos;
+  document.getElementById('todayBalance').textContent = '$' + todayNeto.toLocaleString('es-AR') + (tasaHoy ? ' · ≈US$' + Math.round(todayNeto/tasaHoy).toLocaleString('es-AR') : '');
+
+  document.getElementById('reviewLabel').textContent = reviewDate === today ? 'Hoy' : reviewDate;
+  document.getElementById('reviewDateInput').value = reviewDate;
+  document.getElementById('backTodayBtn').style.display = reviewDate === today ? 'none' : 'block';
+
+  const list = document.getElementById('entriesList');
+  list.innerHTML = '';
+
+  if(t.noSpend){
+    const nsRow = document.createElement('div');
+    nsRow.className = 'day-nospend-row';
+    nsRow.innerHTML = `<span>Marcado como día sin movimientos.</span>`;
+    const quitarBtn = document.createElement('button');
+    quitarBtn.className = 'btn-secondary';
+    quitarBtn.style.cssText = 'width:auto; padding:4px 8px; margin-top:0; font-size:11px;';
+    quitarBtn.textContent = 'Quitar marca';
+    quitarBtn.onclick = ()=>{
+      ledger[reviewDate] = { entries: dayEntry(reviewDate).entries, noSpend: false };
+      saveLedger(ledger);
+      render();
+    };
+    nsRow.appendChild(quitarBtn);
+    list.appendChild(nsRow);
+  }
+
+  if(t.entries.length===0 && !t.noSpend){
+    list.innerHTML = '<div class="empty">No hay movimientos cargados este día.</div>';
+  }
+  const LIMITE = 5;
+  const ordenados = t.entries.slice().reverse();
+  const mostrar = entriesExpanded ? ordenados : ordenados.slice(0, LIMITE);
+  mostrar.forEach(e=>{
+    const isIngreso = e.tipo==='ingreso';
+    const esExtranjera = e.moneda && e.moneda!=='ARS';
+    const ars = montoEnARS(e);
+    const usdEq = usdEquivalente(e);
+    const row = document.createElement('div');
+    row.className = 'entry-row';
+    const accionesHtml = pendingDelete===e.id
+      ? `<div class="entry-actions">
+          <button data-action="confirm-delete" style="color:var(--danger); border-color:var(--danger); width:auto; padding:0 6px; font-size:11px;">Borrar</button>
+          <button data-action="cancel-delete" style="width:auto; padding:0 6px; font-size:11px;">Cancelar</button>
+        </div>`
+      : `<div class="entry-actions">
+          <button data-action="edit" title="Editar">✏️</button>
+          <button data-action="delete" title="Borrar">🗑</button>
+        </div>`;
+    row.innerHTML = `
+      <div class="entry-left">
+        <span><span class="swatch" style="background:${isIngreso?'var(--sage)':'var(--danger)'}"></span>${e.categoria || 'Sin categorizar (dato viejo)'}</span>
+        <span class="entry-cat">${e.nota || e.metodo || ''}${esExtranjera ? ' · ' + e.moneda + ' ' + e.amount.toLocaleString('es-AR') + (e.fxRateARS ? '' : ' ⚠ sin cotización') : ''}</span>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end;">
+        <span class="mono" style="color:${isIngreso?'var(--sage)':'var(--danger)'};">${isIngreso?'+':'-'}$${ars.toLocaleString('es-AR')}</span>
+        <span class="mono usd-eq">${usdEq!==null ? '≈US$'+usdEq.toLocaleString('es-AR',{maximumFractionDigits:2}) : ''}</span>
+      </div>
+      ${accionesHtml}
+    `;
+    if(pendingDelete===e.id){
+      row.querySelector('[data-action="confirm-delete"]').onclick = ()=>borrarMovimiento(reviewDate, e.id);
+      row.querySelector('[data-action="cancel-delete"]').onclick = ()=>{ pendingDelete=null; render(); };
+    } else {
+      row.querySelector('[data-action="edit"]').onclick = ()=>empezarEdicion(reviewDate, e.id);
+      row.querySelector('[data-action="delete"]').onclick = ()=>{ pendingDelete = e.id; render(); };
+    }
+    list.appendChild(row);
+  });
+
+  if(ordenados.length > LIMITE){
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn-secondary';
+    toggleBtn.style.cssText = 'width:100%; margin-top:6px; color:var(--blue); border-color:var(--blue);';
+    toggleBtn.textContent = entriesExpanded
+      ? 'Ver menos'
+      : `Ver los ${ordenados.length - LIMITE} restantes`;
+    toggleBtn.onclick = ()=>{ entriesExpanded = !entriesExpanded; render(); };
+    list.appendChild(toggleBtn);
+  }
+
+  renderForm();
+  renderHistory();
+  renderResumenMensual();
+  renderBackupWarning();
+}
+
+function renderHistory(){
+  const wrap = document.getElementById('historyList');
+  const dias = Object.keys(ledger)
+    .filter(d => (ledger[d].entries && ledger[d].entries.length > 0) || ledger[d].noSpend)
+    .sort().reverse();
+
+  if(dias.length === 0){
+    wrap.innerHTML = '<div class="empty">Todavía no hay días cargados.</div>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+  dias.forEach(dstr=>{
+    const d = ledger[dstr];
+    const entries = d.entries || [];
+    const gastos = entries.filter(e=>e.tipo!=='ingreso').reduce((s,e)=>s+montoEnARS(e),0);
+    const ingresos = entries.filter(e=>e.tipo==='ingreso').reduce((s,e)=>s+montoEnARS(e),0);
+    const neto = ingresos - gastos;
+    const sinMovs = entries.length === 0 && d.noSpend;
+
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'history-row' + (dstr === reviewDate ? ' active' : '');
+    row.innerHTML = `
+      <span class="mono">${dstr}</span>
+      <span class="entry-cat">${sinMovs ? 'sin movimientos' : entries.length + (entries.length===1 ? ' mov.' : ' mov.')}</span>
+      <span class="mono" style="color:${sinMovs ? 'var(--text-dim)' : (neto>=0 ? 'var(--sage)' : 'var(--danger)')}">${sinMovs ? '—' : (neto>=0?'+':'') + '$' + neto.toLocaleString('es-AR')}</span>
+    `;
+    row.onclick = ()=>{
+      reviewDate = dstr;
+      entriesExpanded = false;
+      render();
+      document.getElementById('reviewLabel').scrollIntoView({ behavior:'smooth', block:'center' });
+    };
+    wrap.appendChild(row);
+  });
+}
+
+function renderCategoriaBreakdown(elId, dataObj, color){
+  const el = document.getElementById(elId);
+  const entries = Object.entries(dataObj).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0){
+    el.innerHTML = '<div class="empty">Sin movimientos este mes.</div>';
+    return;
+  }
+  const max = entries[0][1];
+  el.innerHTML = entries.map(([cat,val])=>`
+    <div class="cat-summary-row">
+      <div class="cat-summary-label"><span>${cat}</span><span class="mono">$${Math.round(val).toLocaleString('es-AR')}</span></div>
+      <div class="cat-summary-bar"><div class="cat-summary-bar-fill" style="width:${max>0?(val/max*100).toFixed(0):0}%; background:${color};"></div></div>
+    </div>
+  `).join('');
+}
+
+function renderResumenMensual(){
+  const mesInput = document.getElementById('resumenMesInput');
+  const mes = mesInput.value;
+  let totalGastos = 0, totalIngresos = 0;
+  const porCategoriaGasto = {};
+  const porCategoriaIngreso = {};
+  Object.keys(ledger).forEach(dstr=>{
+    if(!dstr.startsWith(mes)) return;
+    const d = ledger[dstr];
+    (d.entries||[]).forEach(e=>{
+      const ars = montoEnARS(e);
+      const cat = e.categoria || 'Sin categorizar';
+      if(e.tipo==='ingreso'){
+        totalIngresos += ars;
+        porCategoriaIngreso[cat] = (porCategoriaIngreso[cat]||0) + ars;
+      } else {
+        totalGastos += ars;
+        porCategoriaGasto[cat] = (porCategoriaGasto[cat]||0) + ars;
+      }
+    });
+  });
+  document.getElementById('resumenIngresos').textContent = '$' + totalIngresos.toLocaleString('es-AR');
+  document.getElementById('resumenGastos').textContent = '$' + totalGastos.toLocaleString('es-AR');
+  const neto = totalIngresos - totalGastos;
+  const bal = document.getElementById('resumenBalance');
+  bal.textContent = (neto>=0?'+':'') + '$' + neto.toLocaleString('es-AR');
+  bal.style.color = neto>=0 ? 'var(--sage)' : 'var(--danger)';
+  renderCategoriaBreakdown('resumenCatGastos', porCategoriaGasto, 'var(--danger)');
+  renderCategoriaBreakdown('resumenCatIngresos', porCategoriaIngreso, 'var(--sage)');
+}
+
+// aviso si hace mucho que no se descarga un respaldo JSON
+function diasDesdeUltimoRespaldo(){
+  const raw = localStorage.getItem('ficha-gastos-ultimo-respaldo');
+  if(!raw) return null;
+  return Math.floor((Date.now() - Number(raw)) / (1000*60*60*24));
+}
+function renderBackupWarning(){
+  const el = document.getElementById('backupWarning');
+  const hayDatos = Object.keys(ledger).length > 0;
+  if(!hayDatos){ el.style.display = 'none'; return; }
+  const dias = diasDesdeUltimoRespaldo();
+  if(dias === null){
+    el.style.display = 'block';
+    el.textContent = '⚠ Todavía no descargaste ningún respaldo. Hacelo en "Respaldo y exportación" antes de que crezca el historial.';
+  } else if(dias >= 14){
+    el.style.display = 'block';
+    el.textContent = `⚠ Tu último respaldo fue hace ${dias} días. Conviene descargar uno nuevo.`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function empezarEdicion(dstr, id){
+  const entry = dayEntry(dstr).entries.find(e=>e.id===id);
+  if(!entry) return;
+  editing = { dstr, id };
+  tipo = entry.tipo || 'gasto';
+  metodo = entry.metodo || metodosActuales()[0].id;
+  categoria = entry.categoria || null;
+  categoriaSugerida = null;
+  moneda = entry.moneda || 'ARS';
+  document.getElementById('amountInput').value = entry.amount;
+  document.getElementById('notaInput').value = entry.nota || '';
+  document.getElementById('ficharBtn').textContent = 'Guardar cambios';
+  document.getElementById('cancelEditBtn').style.display = 'block';
+  render();
+  document.getElementById('amountInput').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+function cancelarEdicion(){
+  editing = null;
+  document.getElementById('amountInput').value = '';
+  document.getElementById('notaInput').value = '';
+  categoria = null;
+  document.getElementById('ficharBtn').textContent = 'Fichar movimiento';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  render();
+}
+
+function borrarMovimiento(dstr, id){
+  const d = dayEntry(dstr);
+  ledger[dstr] = { entries: d.entries.filter(e=>e.id!==id), noSpend: d.noSpend };
+  saveLedger(ledger);
+  pendingDelete = null;
+  if(editing && editing.dstr===dstr && editing.id===id) cancelarEdicion();
+  render();
+}
+
+// normaliza lo que se tipea en el monto: coma o punto siempre significan "separador decimal",
+// nunca separador de miles, y solo se permite uno. Cualquier otro carácter se descarta.
+function sanitizarMonto(raw){
+  let s = raw.replace(',', '.');
+  s = s.replace(/[^\d.]/g, '');
+  const partes = s.split('.');
+  if(partes.length > 2){
+    s = partes[0] + '.' + partes.slice(1).join('');
+  }
+  const puntoIdx = s.indexOf('.');
+  if(puntoIdx !== -1 && s.length - puntoIdx - 1 > 2){
+    s = s.slice(0, puntoIdx + 3);
+  }
+  return s;
+}
+
+document.getElementById('amountInput').addEventListener('input', (ev)=>{
+  const limpio = sanitizarMonto(ev.target.value);
+  if(limpio !== ev.target.value) ev.target.value = limpio;
+  renderForm();
+});
+
+document.getElementById('reviewDateInput').addEventListener('change', (ev)=>{
+  reviewDate = ev.target.value || today;
+  entriesExpanded = false;
+  render();
+});
+document.getElementById('backTodayBtn').addEventListener('click', ()=>{
+  reviewDate = today;
+  entriesExpanded = false;
+  render();
+});
+document.getElementById('resumenMesInput').addEventListener('change', renderResumenMensual);
+document.getElementById('cancelEditBtn').addEventListener('click', cancelarEdicion);
+
+document.getElementById('ficharBtn').addEventListener('click', ()=>{
+  const amountInput = document.getElementById('amountInput');
+  const notaInput = document.getElementById('notaInput');
+  const val = parseFloat(amountInput.value);
+  if(!val || val<=0 || !categoria) return;
+
+  if(editing){
+    const d = dayEntry(editing.dstr);
+    const idx = d.entries.findIndex(e=>e.id===editing.id);
+    if(idx>-1){
+      const original = d.entries[idx];
+      d.entries[idx] = {
+        ...original, amount: val, tipo, metodo, categoria, moneda,
+        fxRateARS: moneda==='ARS' ? 1 : (moneda===original.moneda ? original.fxRateARS : tasaActual(moneda)),
+        nota: notaInput.value.trim(), editedAt: new Date().toISOString()
+      };
+      ledger[editing.dstr] = d;
+      saveLedger(ledger);
+    }
+    cancelarEdicion();
+    return;
+  }
+
+  const cur = dayEntry(today);
+  ledger[today] = {
+    entries: [...cur.entries, { id: 'e'+Date.now()+Math.random().toString(36).slice(2,8), amount: val, tipo, metodo, categoria, moneda, fxRateARS: tasaActual(moneda), usdRateAtEntry: tasaActual('USD'), nota: notaInput.value.trim(), time: new Date().toISOString() }],
+    noSpend: false
+  };
+  saveLedger(ledger);
+  amountInput.value = '';
+  notaInput.value = '';
+  categoria = null;
+  categoriaSugerida = null;
+  document.getElementById('scanPreview').style.display = 'none';
+  document.getElementById('scanRawWrap').style.display = 'none';
+  document.getElementById('scanStatus').textContent = '';
+  render();
+});
+
+const CATEGORIA_KEYWORDS = [
+  ['Salud', ['farmacia','drogueria','farmacity']],
+  ['Transporte', ['ypf','shell','axion','puma energy','combustible','nafta','repuestos','lubricentro','taller','neumatico','peaje','sube']],
+  ['Vivienda/Servicios', ['ferreteria','pintureria','edenor','edesur','metrogas','aysa']],
+  ['Indumentaria', ['indumentaria','calzado','zapateria']],
+  ['Educación', ['libreria','editorial','instituto']],
+  ['Ocio', ['cine','bowling','entretenimiento']],
+  ['Comida', ['supermercado','super','almacen','mercado','kiosco','panaderia','carniceria','verduleria','fiambreria','dietetica','rotiseria','restaurant','resto','pizzeria','heladeria','dia %','carrefour','coto','jumbo']],
+];
+
+function normalizar(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+function sugerirCategoria(textoNorm){
+  for(const [cat, kws] of CATEGORIA_KEYWORDS){
+    if(kws.some(k=>textoNorm.includes(k))) return cat;
+  }
+  return null;
+}
+
+function sugerirMetodo(textoNorm){
+  if(textoNorm.includes('credito')) return 'credito';
+  if(textoNorm.includes('debito') || textoNorm.includes('tarjeta')) return 'debito';
+  if(textoNorm.includes('efectivo')) return 'efectivo';
+  return null;
+}
+
+function extraerNumeros(str){
+  const matches = str.match(/\d+(?:[.,]\d{3})*(?:[.,]\d{2})?/g) || [];
+  return matches.map(m=>{
+    let s = m;
+    if(/[.,]/.test(s)){
+      const lastComma = s.lastIndexOf(',');
+      const lastDot = s.lastIndexOf('.');
+      const decSep = Math.max(lastComma, lastDot);
+      if(decSep>-1 && s.length-decSep-1<=2 && s.length-decSep-1>0){
+        s = s.slice(0,decSep).replace(/[.,]/g,'') + '.' + s.slice(decSep+1);
+      } else {
+        s = s.replace(/[.,]/g,'');
+      }
+    }
+    return parseFloat(s);
+  }).filter(n=>!isNaN(n) && n>0 && n<10000000);
+}
+
+function extraerMonto(texto){
+  const lineas = texto.split('\n').map(l=>l.trim()).filter(Boolean);
+  const candidatosTotal = [];
+  for(const linea of lineas){
+    const norm = normalizar(linea);
+    if(/\btotal\b/.test(norm) && !/subtotal/.test(norm)){
+      candidatosTotal.push(...extraerNumeros(linea));
+    }
+  }
+  if(candidatosTotal.length) return Math.max(...candidatosTotal);
+  const todos = extraerNumeros(texto);
+  return todos.length ? Math.max(...todos) : null;
+}
+
+document.getElementById('scanBtn').addEventListener('click', ()=>{
+  document.getElementById('ticketInput').click();
+});
+
+function downscaleImagen(dataUrl, maxAncho){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      let { width, height } = img;
+      if(width > maxAncho){
+        height = Math.round(height * (maxAncho / width));
+        width = maxAncho;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = ()=>resolve(dataUrl); // si falla el redimensionado, se usa la original
+    img.src = dataUrl;
+  });
+}
+
+document.getElementById('ticketInput').addEventListener('change', async (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+
+  const scanBtn = document.getElementById('scanBtn');
+  const status = document.getElementById('scanStatus');
+  const preview = document.getElementById('scanPreview');
+  const thumb = document.getElementById('scanThumb');
+
+  const dataUrl = await new Promise(res=>{
+    const reader = new FileReader();
+    reader.onload = e=>res(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  thumb.src = dataUrl;
+  preview.style.display = 'flex';
+
+  scanBtn.disabled = true;
+  status.textContent = 'Leyendo ticket… puede tardar unos segundos.';
+
+  try{
+    const imagenParaOcr = await downscaleImagen(dataUrl, 1000);
+    const worker = await Tesseract.createWorker('spa');
+    const { data: { text } } = await worker.recognize(imagenParaOcr);
+    await worker.terminate();
+    const textoNorm = normalizar(text);
+
+    tipo = 'gasto';
+    metodo = sugerirMetodo(textoNorm) || metodosActuales()[0].id;
+    categoriaSugerida = sugerirCategoria(textoNorm);
+    categoria = null;
+
+    const montoDetectado = extraerMonto(text);
+    const amountInput = document.getElementById('amountInput');
+    if(montoDetectado){
+      amountInput.value = montoDetectado;
+      status.textContent = 'Monto detectado: revisalo antes de fichar.';
+    } else {
+      amountInput.value = '';
+      status.textContent = 'No pude detectar el monto. Escribilo a mano.';
+    }
+
+    document.getElementById('scanRawWrap').style.display = 'block';
+    document.getElementById('scanRawText').textContent = text.trim() || '(sin texto legible)';
+
+    render();
+  }catch(err){
+    console.error('Error de OCR:', err);
+    status.textContent = 'Falló la lectura (' + (err && err.message ? err.message : String(err)) + ').';
+  }finally{
+    scanBtn.disabled = false;
+    ev.target.value = '';
+  }
+});
+
+document.getElementById('noSpendBtn').addEventListener('click', ()=>{
+  const cur = dayEntry(reviewDate);
+  ledger[reviewDate] = { entries: cur.entries, noSpend: true };
+  saveLedger(ledger);
+  render();
+});
+
+function downloadBlob(content, filename, type){
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function csvField(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }
+
+// arma las filas de datos, compartidas entre el export a CSV y el export a Excel real
+function construirFilasExport(){
+  const rows = [['fecha','hora','tipo','categoria','moneda','monto_original','monto_ars','equivalente_usd','cotizacion_usd_al_momento','metodo','nota','sin_movimientos']];
+  Object.keys(ledger).sort().forEach(dstr=>{
+    const d = ledger[dstr];
+    if(d.noSpend && d.entries.length===0){
+      rows.push([dstr,'','','','','','','','','','','SI']);
+    }
+    d.entries.forEach(e=>{
+      const time = new Date(e.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+      const usdEq = usdEquivalente(e);
+      rows.push([dstr, time, e.tipo||'gasto', e.categoria||'Sin categorizar (dato viejo)', e.moneda||'ARS', e.amount, montoEnARS(e), usdEq!==null?Number(usdEq.toFixed(2)):'', e.usdRateAtEntry||'', e.metodo||'', e.nota||'', '']);
+    });
+  });
+  return rows;
+}
+
+document.getElementById('exportXlsxBtn').addEventListener('click', ()=>{
+  try{
+    const rows = construirFilasExport();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:11},{wch:8},{wch:8},{wch:22},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:10},{wch:24},{wch:8}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+    XLSX.writeFile(wb, 'movimientos-de-caja.xlsx');
+  }catch(err){
+    console.error('Error al generar Excel:', err);
+    alert('No se pudo generar el Excel en este entorno. Probá desde el ícono de tu teléfono, no desde la vista previa del chat.');
+  }
+});
+
+document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+  const rows = construirFilasExport();
+  const csv = rows.map(r=>r.map(csvField).join(',')).join('\n');
+  downloadBlob('\uFEFF' + csv, 'ficha-gastos.csv', 'text/csv;charset=utf-8');
+});
+
+document.getElementById('exportJsonBtn').addEventListener('click', ()=>{
+  downloadBlob(JSON.stringify(ledger, null, 2), 'ficha-gastos-respaldo.json', 'application/json');
+  try{ localStorage.setItem('ficha-gastos-ultimo-respaldo', String(Date.now())); }catch(e){}
+  renderBackupWarning();
+});
+
+document.getElementById('importFile').addEventListener('change', (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      ledger = data;
+      saveLedger(ledger);
+      render();
+      alert('Respaldo restaurado.');
+    }catch(err){
+      alert('Ese archivo no es un respaldo válido de esta ficha.');
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+});
+
+document.getElementById('fxRefreshBtn').addEventListener('click', ()=>{
+  document.getElementById('fxUpdated').textContent = 'Actualizando…';
+  fetchFx(true);
+});
+
+render();
+renderFx();
+fetchFx(false);
+document.getElementById('reviewDateInput').max = today;
+document.getElementById('resumenMesInput').value = today.slice(0,7);
+renderResumenMensual();
+renderBackupWarning();
+</script>
+</body>
+</html>
