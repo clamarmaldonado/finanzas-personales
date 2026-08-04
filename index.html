@@ -1,0 +1,2568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ADMINISTRACIÓN MARCOS</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F2F7" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+<meta name="color-scheme" content="light dark" />
+<!-- Tesseract.js y SheetJS se cargan bajo demanda, no acá, para no pesar en cada visita -->
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg:#F2F2F7; --surface:#FFFFFF; --border:#C6C6C8;
+    --text:#000000; --text-dim:#8E8E93;
+    --accent:#007AFF; --sage:#34C759; --blue:#007AFF; --danger:#FF3B30;
+    --ingreso:#34C759; --gasto:#FF3B30;
+    --radius:14px; --radius-sm:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#000000; --surface:#1C1C1E; --border:#38383A;
+      --text:#FFFFFF; --text-dim:#8E8E93;
+      --accent:#0A84FF; --sage:#30D158; --blue:#0A84FF; --danger:#FF453A;
+      --ingreso:#30D158; --gasto:#FF453A;
+    }
+  }
+  *{box-sizing:border-box; -webkit-font-smoothing:antialiased;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    padding-top: env(safe-area-inset-top);
+  }
+  .wrap{max-width:440px; margin:0 auto; padding:14px 16px 24px;}
+  .eyebrow{font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-dim); font-weight:600;}
+  h1{font-size:22px; font-weight:700; letter-spacing:-0.01em; margin:4px 0 20px;}
+  .mono{font-family:inherit; font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
+  .card{
+    background:var(--surface); border-radius:var(--radius); padding:14px; margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+  }
+  .row{display:flex; align-items:center; justify-content:space-between;}
+  .streak-num{font-size:22px; font-weight:700;}
+  .punch-row{display:flex; justify-content:space-between; margin-top:4px;}
+  .punch{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .dot{width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:15px; line-height:1;}
+  .dot.missed{background:transparent; border-color:var(--danger);}
+  .dot.pending{background:transparent; border-color:var(--text-dim); border-style:dashed;}
+  .dot.ok, .dot.warn{border:none;}
+  .daylabel{font-size:12px; color:var(--text-dim);}
+  input[type=number], input[type=text]{
+    width:100%; padding:12px 14px; margin-bottom:12px; font-size:17px;
+    background:var(--bg); border:none; border-radius:var(--radius-sm); color:var(--text);
+    outline:none; font-family:inherit;
+  }
+  input[type=text]{font-size:15px;}
+  /* borde compartido: mismo valor usado en 8 recuadros distintos, ahora en un solo lugar */
+  .tipo-btn, .currency-inline, .method-btn, .cat-btn,
+  .control-real-wrap, .control-row input, .signo-btn, .saldo-inicial-row input {
+    border:1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  }
+  .control-real-wrap, .control-row input, .signo-btn, .saldo-inicial-row input {
+    box-shadow:0 1px 2px color-mix(in srgb, #000 6%, transparent) inset;
+  }
+  .tipo-row{display:flex; gap:2px; margin-bottom:12px; background:var(--bg); border-radius:11px; padding:2px;}
+  .tipo-btn{
+    flex:1; padding:9px; font-size:14px; font-weight:600;
+    background:var(--surface);
+    border-radius:9px; color:var(--text-dim);
+  }
+  .tipo-btn.active.gasto{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .tipo-btn.active.ingreso{background:var(--sage); border-color:var(--sage); color:#fff;}
+  .tipo-btn.active.transferencia{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .currency-wrap{position:relative; flex:0 0 62px;}
+  .currency-inline{
+    appearance:none; -webkit-appearance:none; -moz-appearance:none;
+    width:100%; height:100%; padding:9px 4px 14px; font-size:12px; font-weight:600;
+    text-align:center; text-transform:uppercase; text-align-last:center;
+    background:var(--surface);
+    border-radius:9px; color:var(--text);
+  }
+  .currency-arrow{
+    position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
+    font-size:8px; color:var(--text-dim); pointer-events:none; line-height:1;
+  }
+  .methods{display:flex; gap:8px; margin-bottom:12px;}
+  .method-btn{
+    flex:1; padding:10px; font-size:13px; font-weight:500;
+    background:var(--bg);
+    border-radius:var(--radius-sm); color:var(--text-dim);
+  }
+  .method-btn.active{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .cat-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;}
+  .cat-btn{
+    padding:8px 3px; font-size:11.5px; font-weight:500;
+    background:var(--bg);
+    border-radius:8px; color:var(--text-dim);
+    text-align:center;
+  }
+  .cat-btn.active{background:var(--accent); color:#fff;}
+  button{font-family:inherit; cursor:pointer;}
+  .btn-primary{
+    width:100%; padding:14px; font-size:16px; font-weight:600;
+    background:linear-gradient(180deg, color-mix(in srgb, #fff 18%, var(--accent)), var(--accent));
+    color:#fff; border:none; border-radius:var(--radius-sm);
+    box-shadow:0 1px 0 color-mix(in srgb, #fff 25%, transparent) inset, 0 2px 6px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .btn-primary:disabled{opacity:.4;}
+  .btn-secondary{
+    width:100%; padding:11px; font-size:14px; font-weight:600; margin-top:8px;
+    background:var(--bg); color:var(--sage); border:none; border-radius:var(--radius-sm);
+  }
+  .btn-secondary:disabled{opacity:.35; color:var(--text-dim);}
+  .entry-row{display:flex; align-items:center; justify-content:space-between; font-size:14px; padding:8px 0; border-bottom:1px solid var(--border);}
+  .entry-row:last-child{border-bottom:none;}
+  .entry-left{display:flex; flex-direction:column;}
+  .entry-cat{font-size:12px; color:var(--text-dim);}
+  .swatch{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .empty{color:var(--text-dim); font-size:14px;}
+  .warn{color:var(--danger); font-size:12px; margin-top:8px;}
+  .campo-error{outline:2px solid var(--gasto); outline-offset:3px; border-radius:10px;}
+  .balance-row{display:flex; justify-content:space-between; font-size:13px; margin-top:8px; color:var(--text-dim);}
+  .scan-icon-btn{
+    flex-shrink:0; width:48px; border:none; border-radius:var(--radius-sm); background:var(--bg);
+    color:var(--text); font-size:19px; display:flex; align-items:center; justify-content:center;
+  }
+  .scan-icon-btn:disabled{opacity:.5;}
+  .scan-status{font-size:12px; color:var(--text-dim); margin:-8px 0 14px; text-align:center;}
+  .scan-preview{display:flex; align-items:center; gap:10px; margin:-8px 0 14px;}
+  .scan-preview img{width:56px; height:56px; object-fit:cover; border-radius:8px;}
+  .cat-btn.suggested{box-shadow:0 0 0 2px var(--accent); position:relative;}
+  .cat-btn.suggested::after{content:'sugerida'; position:absolute; top:-8px; right:4px; font-size:9px; background:var(--accent); color:#fff; padding:1px 4px; border-radius:4px;}
+  details.scan-raw{margin:-8px 0 14px; font-size:12px; color:var(--text-dim);}
+  details.scan-raw summary{cursor:pointer;}
+  details.scan-raw pre{white-space:pre-wrap; font-family:inherit; font-size:11px; margin-top:6px;}
+  .fx-primary{font-size:20px; font-weight:700;}
+  .fx-updated{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .fx-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; font-size:12px;}
+  .fx-grid div{color:var(--text-dim);}
+  .fx-grid b{color:var(--text); font-weight:600;}
+  .tile-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .fx-tile{background:var(--bg); border-radius:var(--radius-sm); padding:5px 8px; display:flex; align-items:center; justify-content:space-between; gap:6px;}
+  .fx-tile select{
+    background:transparent; border:none; color:var(--text);
+    font-family:inherit; font-weight:600; padding:0; flex-shrink:0;
+  }
+  .fx-tile .fx-tile-val{font-size:12px; font-weight:600; font-family:inherit; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .usd-eq{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .entry-actions{display:flex; gap:4px; margin-left:8px;}
+  .entry-actions button{
+    background:var(--bg); border:none; border-radius:7px; color:var(--text-dim);
+    width:26px; height:26px; font-size:12px; padding:0; line-height:1;
+  }
+  .entry-actions button:hover{color:var(--text);}
+  .day-nospend-row{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--sage);}
+  .history-item{border-bottom:1px solid var(--border);}
+  .history-item summary{list-style:none;}
+  .history-item summary::-webkit-details-marker{display:none;}
+  .history-item summary::after{content:'⌄'; float:right; color:var(--text-dim); margin-left:8px;}
+  .history-item[open] summary::after{content:'⌃';}
+  .history-item:last-child{border-bottom:none;}
+  .history-row{
+    display:flex; justify-content:space-between; align-items:center; width:100%;
+    background:none; border:none;
+    color:var(--text); font-family:inherit; font-size:13px; padding:9px 0; cursor:pointer; text-align:left;
+  }
+  .history-row.active{color:var(--accent);}
+  .history-row .entry-cat{font-size:11px;}
+  .history-expand-btn{
+    flex-shrink:0; width:28px; background:none; border:none; color:var(--text-dim);
+    font-size:16px; transition:transform .15s;
+  }
+  .history-expand-panel{padding:2px 0 8px;}
+  .cat-summary-row{margin-bottom:7px;}
+  .cat-summary-label{display:flex; justify-content:space-between; align-items:center; font-size:12px;}
+  .cat-dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .storage-bar{display:flex; height:10px; border-radius:5px; overflow:hidden; margin-bottom:12px; background:var(--bg);}
+  .storage-bar > div{height:100%;}
+  .tab-bar{
+    position:fixed; bottom:0; left:0; right:0; z-index:50;
+    display:flex; background:color-mix(in srgb, var(--surface) 72%, transparent);
+    border-top:1px solid color-mix(in srgb, var(--text) 12%, transparent);
+    box-shadow:0 -1px 0 color-mix(in srgb, #fff 30%, transparent) inset;
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%);
+  }
+  .tab-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+    background:none; border:none; color:var(--text-dim); font-family:inherit;
+    font-size:10px; font-weight:500; padding:6px 2px;
+  }
+  .tab-btn .tab-icon{
+    font-size:18px; line-height:1; position:relative; display:inline-flex;
+    align-items:center; justify-content:center;
+    width:38px; height:30px; border-radius:12px;
+    background:color-mix(in srgb, var(--text) 6%, transparent);
+    border:1px solid color-mix(in srgb, var(--text) 10%, transparent);
+    transition:background .15s, border-color .15s;
+    color:var(--text-dim);
+  }
+  .tab-btn .tab-icon svg{width:19px; height:19px; display:block;}
+  .tab-btn.active .tab-icon{
+    color:var(--accent);
+    background:color-mix(in srgb, var(--accent) 16%, transparent);
+    border-color:color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .tab-badge{
+    position:absolute; top:-4px; right:-9px; background:var(--gasto); color:#fff;
+    font-size:9px; font-weight:700; min-width:15px; height:15px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; padding:0 3px; font-family:-apple-system, sans-serif;
+  }
+  .control-row{margin-bottom:8px;}
+  .control-row .control-head{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:6px; font-size:13px; margin-bottom:4px;}
+  .control-row .control-head > span:last-child{text-align:right;}
+  .semaforo{display:flex; align-items:center; gap:5px;}
+  .semaforo .luz{width:9px; height:9px; border-radius:50%; background:color-mix(in srgb, var(--text) 18%, transparent);}
+  .semaforo .luz.roja.on{background:var(--gasto); box-shadow:0 0 4px color-mix(in srgb, var(--gasto) 70%, transparent);}
+  .semaforo .luz.amarilla.on{background:#FFCC00; box-shadow:0 0 4px rgba(255,204,0,0.6);}
+  .semaforo .luz.verde.on{background:var(--ingreso); box-shadow:0 0 4px color-mix(in srgb, var(--ingreso) 70%, transparent);}
+  .control-real-wrap{
+    display:flex; align-items:center; background:var(--bg);
+    border-radius:8px;
+    padding-left:12px;
+  }
+  .control-real-wrap:focus-within{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .control-real-label{color:var(--text-dim); font-size:13px; white-space:nowrap; padding-right:10px;}
+  .control-real-divider{width:1px; align-self:stretch; margin:9px 0; background:color-mix(in srgb, var(--text) 16%, transparent);}
+  .control-row input{
+    width:100%; padding:10px 12px; background:var(--bg);
+    border-radius:8px;
+    color:var(--text); font-family:inherit; font-size:14px; margin-bottom:0;
+  }
+  .control-row input:focus{
+    outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .control-real-wrap input{
+    flex:1; min-width:0; border:none; background:transparent; box-shadow:none;
+    text-align:right; padding:10px 12px 10px 4px;
+  }
+  .control-real-wrap input:focus{outline:none; border:none; box-shadow:none;}
+  .signo-btn{
+    flex-shrink:0; width:40px; background:var(--bg);
+    border-radius:8px; color:var(--text); font-size:17px; font-weight:600; font-family:inherit;
+  }
+  .control-diff{font-size:11px; margin-top:3px;}
+  .saldo-inicial-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12px;}
+  .saldo-inicial-row label{flex:1; color:var(--text-dim);}
+  .saldo-inicial-row input{
+    width:110px; padding:7px 10px; background:var(--bg);
+    border-radius:8px;
+    color:var(--text); font-family:inherit; font-size:12px; margin-bottom:0; text-align:right;
+  }
+  .saldo-inicial-row input:focus{
+    outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .tab-btn.active{color:var(--accent);}
+
+  /* iOS hace zoom automático al enfocar un campo con letra menor a 16px. Lo forzamos acá para todos los campos. */
+  input, select, textarea{ font-size:16px !important; }
+</style>
+</head>
+<body>
+<div id="lockScreen" style="display:none; position:fixed; inset:0; z-index:200; background:var(--bg); flex-direction:column; align-items:center; justify-content:center; padding:24px;">
+  <div style="font-size:40px; margin-bottom:12px;">🔒</div>
+  <div class="eyebrow" style="margin-bottom:16px;">Ingresá tu PIN</div>
+  <input type="password" inputmode="numeric" maxlength="6" id="lockPinInput" class="mono" style="width:160px; text-align:center; font-size:24px; letter-spacing:8px; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); margin-bottom:12px;" />
+  <button class="btn-primary" id="lockUnlockBtn" style="width:160px;">Desbloquear</button>
+  <div class="warn" id="lockError" style="margin-top:10px;"></div>
+</div>
+<div class="wrap">
+  <div class="row" style="margin-bottom:14px; align-items:baseline;">
+    <h1 style="margin:0; font-size:20px; color:var(--text);">ADMINISTRACIÓN MARCOS</h1>
+    <span class="mono eyebrow" id="todayLabel" style="color:var(--text-dim);"></span>
+  </div>
+
+
+  <div class="tab-panel" id="tab-fichar">
+  <div class="card" style="padding:12px 16px;">
+    <div class="punch-row" id="punchRow"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px;">Fichar movimiento</div>
+
+    <div class="tipo-row" id="tipoRow"></div>
+
+    <div class="row" style="margin-bottom:12px; font-size:12px;">
+      <span class="eyebrow" style="margin-bottom:0;">Fecha del movimiento</span>
+      <input type="date" id="fechaFicharInput" class="mono" style="background:var(--bg); border:none; border-radius:8px; color:var(--text); padding:6px 8px; font-size:13px;" />
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <input type="text" inputmode="decimal" id="amountInput" placeholder="Monto" style="flex:1; margin-bottom:0;" />
+      <button type="button" class="signo-btn" id="amountSignoBtn" title="Signo">±</button>
+      <button class="scan-icon-btn" id="scanBtn" type="button" title="Escanear ticket">📷</button>
+    </div>
+    <input type="file" accept="image/*" capture="environment" id="ticketInput" style="display:none;" />
+    <div class="scan-status" id="scanStatus"></div>
+    <div class="scan-preview" id="scanPreview" style="display:none;">
+      <img id="scanThumb" alt="Ticket escaneado" />
+      <span class="eyebrow" style="text-transform:none; letter-spacing:0;">Revisá el monto contra la foto antes de fichar.</span>
+    </div>
+    <details class="scan-raw" id="scanRawWrap" style="display:none;">
+      <summary>Ver texto que leyó el OCR</summary>
+      <pre id="scanRawText"></pre>
+    </details>
+
+    <div id="gastoIngresoFields">
+      <div class="methods" id="methodsRow"></div>
+      <select id="cuentaSelect" class="mono" style="width:100%; padding:10px; margin-bottom:12px; background:var(--bg); border:none; border-radius:10px; color:var(--text); font-size:13px;">
+        <option value="">Elegí una cuenta</option>
+      </select>
+
+      <div class="eyebrow" style="margin-bottom:8px;">Categoría (obligatoria)</div>
+      <div class="cat-grid" id="catGrid"></div>
+      <select id="catExtSelect" class="mono" style="width:100%; padding:10px; margin-bottom:12px; background:var(--bg); border:none; border-radius:10px; color:var(--text); font-size:13px;">
+        <option value="">Más categorías…</option>
+      </select>
+      <select id="subcategoriaSelect" class="mono" style="display:none; width:100%; padding:10px; margin-bottom:12px; background:var(--bg); border:none; border-radius:10px; color:var(--text); font-size:13px;">
+        <option value="">Subcategoría (opcional)</option>
+      </select>
+    </div>
+
+    <div id="transferenciaFields" style="display:none;">
+      <div class="eyebrow" style="margin-bottom:6px;">Desde</div>
+      <select id="cuentaOrigenSelect" class="mono" style="width:100%; padding:10px; margin-bottom:12px; background:var(--bg); border:none; border-radius:10px; color:var(--text); font-size:13px;">
+        <option value="">Elegí una cuenta</option>
+      </select>
+      <div class="eyebrow" style="margin-bottom:6px;">Hacia</div>
+      <select id="cuentaDestinoSelect" class="mono" style="width:100%; padding:10px; margin-bottom:12px; background:var(--bg); border:none; border-radius:10px; color:var(--text); font-size:13px;">
+        <option value="">Elegí una cuenta</option>
+      </select>
+      <div class="warn" id="transferenciaWarn" style="display:none;">Origen y destino tienen que ser distintos.</div>
+    </div>
+
+    <div id="manualRateWrap" style="display:none; margin-bottom:12px;">
+      <div class="warn" style="margin:0 0 6px; color:var(--accent);" id="manualRateLabel"></div>
+      <input type="text" inputmode="decimal" id="manualRateInput" placeholder="Cotización manual" />
+    </div>
+    <input type="text" id="notaInput" placeholder="Nota (opcional, no reemplaza la categoría)" />
+    <div style="display:flex; gap:8px;">
+      <button class="btn-secondary" id="noSpendBtn" style="flex:1; margin-top:0;">Marcar día sin movimientos</button>
+      <button class="btn-primary" id="ficharBtn" style="flex:2; margin-top:0;">Fichar movimiento</button>
+    </div>
+    <button class="btn-secondary" id="cancelEditBtn" style="display:none; color:var(--danger); border-color:var(--danger); margin-top:8px;">Cancelar edición</button>
+    <div class="warn" id="saveErr"></div>
+  </div>
+  </div>
+
+  <div class="tab-panel" id="tab-movimientos" style="display:none;">
+  <div class="card">
+    <div style="display:flex; align-items:flex-start; gap:10px;">
+      <div style="flex:1;">
+        <div class="eyebrow">Oficial</div>
+        <div class="fx-primary mono" id="fxPrimary">—</div>
+      </div>
+      <div id="fxArgGrid" style="flex:1; font-size:11px; display:flex; flex-direction:column; gap:3px; padding-top:2px;"></div>
+      <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0;">
+        <button class="btn-secondary" id="fxRefreshBtn" style="width:auto; padding:8px 10px; margin-top:0; font-size:11px;">Actualizar</button>
+        <div class="mono" id="fxUpdated" style="margin-top:5px; font-size:10px; text-align:center; line-height:1.4;"></div>
+      </div>
+    </div>
+
+    <div class="tile-grid" id="fxTileGrid" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="row" style="margin-bottom:10px; padding:0 2px;">
+    <span class="eyebrow" style="margin-bottom:0;">Ver Historial / Resumen en</span>
+    <select id="monedaVisSelect" class="mono" style="background:var(--surface); border:none; border-radius:8px; color:var(--text); padding:5px 8px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);"></select>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:12px;">Historial</div>
+    <div id="historyList" style="max-height:280px; overflow-y:auto;"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow" style="margin-bottom:10px;">Resumen mensual</div>
+    <div id="resumenMensualContainer"></div>
+  </div>
+  </div>
+
+  <div class="tab-panel" id="tab-ajustes" style="display:none;">
+  <div class="card" style="padding:12px 16px; border:1px solid var(--accent);">
+    <div class="eyebrow" style="margin-bottom:6px; color:var(--accent);">⚠ Un solo dispositivo</div>
+    <div style="font-size:12px; color:var(--text); line-height:1.5;">Esta ficha guarda todo en el navegador <b>de este teléfono</b>, no en la nube. Si la abrís desde otro dispositivo (tu Mac, otro celular), es una base de datos completamente distinta y separada — nada se sincroniza sola. Si necesitás seguir cargando desde otro lugar, hacé el respaldo JSON acá abajo primero.</div>
+  </div>
+
+  <div class="card" style="padding:12px 16px;">
+    <details>
+      <summary class="eyebrow" style="cursor:pointer;">Bloqueo con PIN</summary>
+      <div id="pinConfigWrap" style="margin-top:10px;"></div>
+    </details>
+  </div>
+  <div class="card" style="padding:12px 16px;">
+    <details>
+      <summary class="eyebrow" style="cursor:pointer;">Respaldo y exportación</summary>
+      <div style="margin-top:10px;">
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <button class="btn-primary" id="exportXlsxBtn" style="flex:1; padding:9px; font-size:12px;">Excel (.xlsx)</button>
+          <button class="btn-secondary" id="exportCsvBtn" style="flex:1; margin-top:0; padding:9px; font-size:12px; color:var(--text-dim); border-color:var(--border);">CSV</button>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-secondary" id="exportJsonBtn" style="flex:1; margin-top:0; padding:9px; font-size:12px; color:var(--blue); border-color:var(--blue); position:relative;">Respaldo (JSON)<span id="respaldoBadge" class="tab-badge" style="display:none; top:-6px; right:-6px;"></span></button>
+          <label class="btn-secondary" for="importFile" style="flex:1; margin-top:0; padding:9px; font-size:12px; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--text-dim); border-color:var(--border);">
+            Cargar (JSON)
+          </label>
+        </div>
+        <input type="file" id="importFile" accept="application/json" style="display:none;" />
+      </div>
+    </details>
+  </div>
+
+  <div class="card" style="padding:12px 16px;">
+    <details>
+      <summary class="eyebrow" style="cursor:pointer;">Saldo inicial por cuenta</summary>
+      <div class="entry-cat" style="margin:10px 0;">Solo hace falta cargarlo una vez, para la plata que ya tenías antes de empezar a usar la ficha.</div>
+      <div id="saldoInicialList"></div>
+      <div style="display:flex; gap:6px; margin-top:10px;">
+        <select id="nuevaCuentaSelect" class="mono" style="flex:1; padding:8px; background:var(--bg); border:none; border-radius:8px; color:var(--text); font-size:12px;"></select>
+        <select id="nuevaMonedaSelect" class="mono" style="width:70px; padding:8px; background:var(--bg); border:none; border-radius:8px; color:var(--text); font-size:12px;"></select>
+        <button class="btn-secondary" id="agregarCuentaBtn" style="width:auto; margin-top:0; padding:8px 10px; font-size:12px;">+ Agregar</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" style="padding:12px 16px;">
+    <details>
+      <summary class="eyebrow" style="cursor:pointer; color:var(--gasto);">Borrar datos</summary>
+      <div style="margin-top:10px;">
+        <div style="margin-bottom:16px;">
+          <div class="entry-cat" style="margin-bottom:6px;">Borrar un día completo</div>
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <input type="date" id="borrarDiaInput" class="mono" style="flex:1; background:var(--bg); border:none; border-radius:8px; color:var(--text); padding:8px; font-size:12px; margin-bottom:0;" />
+            <button class="btn-secondary" id="borrarDiaBtn" style="width:auto; margin-top:0; padding:8px 12px; font-size:12px; color:var(--gasto); border-color:var(--gasto);">Borrar</button>
+          </div>
+          <div id="borrarDiaConfirm"></div>
+        </div>
+
+        <div>
+          <div class="entry-cat" style="margin-bottom:6px;">Borrar un mes completo</div>
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <input type="month" id="borrarMesInput" class="mono" style="flex:1; background:var(--bg); border:none; border-radius:8px; color:var(--text); padding:8px; font-size:12px; margin-bottom:0;" />
+            <button class="btn-secondary" id="borrarMesBtn" style="width:auto; margin-top:0; padding:8px 12px; font-size:12px; color:var(--gasto); border-color:var(--gasto);">Borrar</button>
+          </div>
+          <div id="borrarMesConfirm"></div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary class="eyebrow" style="cursor:pointer;">¿Cómo actualizo esta ficha?</summary>
+      <div style="margin-top:10px; font-size:13px; color:var(--text); line-height:1.5;">
+        <p style="margin:0 0 8px;">Esta ficha vive en un repositorio de GitHub llamado <b class="mono">Movimientos-de-caja</b>, publicado con GitHub Pages. Para actualizarla con una versión nueva del archivo:</p>
+        <ol style="margin:0 0 8px; padding-left:18px;">
+          <li style="margin-bottom:6px;">Entrá a tu repositorio <span class="mono">Movimientos-de-caja</span> en github.com.</li>
+          <li style="margin-bottom:6px;">Tocá el archivo <span class="mono">index.html</span> existente.</li>
+          <li style="margin-bottom:6px;">Usá el ícono de editar (lápiz) o "Add file → Upload files" para reemplazarlo por la versión nueva.</li>
+          <li style="margin-bottom:6px;">Confirmá el cambio (commit). GitHub Pages se actualiza solo, normalmente en menos de un minuto.</li>
+        </ol>
+        <p style="margin:0 0 8px; color:var(--text-dim);">Los datos que ya cargaste no se pierden: viven en el navegador de tu teléfono, atados a esta dirección web, no al archivo en sí.</p>
+        <p style="margin:0; color:var(--text-dim);">Si después de actualizar seguís viendo la versión vieja: cerrá la app del todo (no solo minimizarla) y volvé a abrirla, o entrá una vez desde Safari directo a la URL para forzar la descarga de lo nuevo.</p>
+      </div>
+    </details>
+  </div>
+  </div>
+
+  <div class="tab-panel" id="tab-control" style="display:none;">
+  <div class="card" style="padding:12px 16px;">
+    <div class="eyebrow" style="margin-bottom:4px;">Control semanal</div>
+    <div class="entry-cat" id="controlUltimo" style="margin-bottom:12px;"></div>
+    <div id="controlList"></div>
+    <button class="btn-primary" id="guardarControlBtn" style="margin-top:10px;">Verificar</button>
+    <div class="entry-cat" id="controlResumen" style="margin-top:8px; text-align:center;"></div>
+    <details style="margin-top:10px;">
+      <summary class="eyebrow" style="cursor:pointer;">Controles anteriores</summary>
+      <div id="historialControlList" style="margin-top:8px; max-height:180px; overflow-y:auto;"></div>
+    </details>
+  </div>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="fichar"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span><span>Fichar</span></button>
+  <button class="tab-btn" data-tab="movimientos"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5"/><path d="M7 13.5h3M7 17h6"/></svg></span><span>Movimientos</span></button>
+  <button class="tab-btn" data-tab="control"><span class="tab-icon" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c3.5 1 5.5 1.3 7.5 1.3v6.7c0 4.3-3 7.3-7.5 9-4.5-1.7-7.5-4.7-7.5-9V4.8c2 0 4-.3 7.5-1.3z"/><path d="M8.7 12.3l2.2 2.2 4.4-4.5"/></svg><span id="controlBadge" class="tab-badge" style="display:none;"></span></span><span>Control</span></button>
+  <button class="tab-btn" data-tab="ajustes"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M17.8 6.2l-1.55 1.55M7.75 16.25L6.2 17.8M17.8 17.8l-1.55-1.55M7.75 7.75L6.2 6.2"/></svg><span id="ajustesBadge" class="tab-badge" style="display:none;"></span></span><span>Ajustes</span></button>
+</div>
+
+<script>
+// carga un script externo solo la primera vez que hace falta, no en cada visita
+const scriptsCargados = {};
+function cargarScript(url){
+  if(scriptsCargados[url]) return scriptsCargados[url];
+  scriptsCargados[url] = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return scriptsCargados[url];
+}
+
+const METODOS_GASTO = [
+  { id:'efectivo', label:'Efectivo' },
+  { id:'debito', label:'Débito' },
+  { id:'credito', label:'Crédito' },
+  { id:'transferencia', label:'Transferencia' },
+];
+const METODOS_INGRESO = [
+  { id:'efectivo', label:'Efectivo' },
+  { id:'transferencia', label:'Transferencia' },
+  { id:'cheque', label:'Cheque' },
+  { id:'deposito', label:'Depósito' },
+];
+const CATS_GASTO = ['Comida','Transporte','Vivienda/Servicios','Salud','Ocio','Indumentaria','Educación','Otro'];
+
+const SUBCATEGORIAS = {
+  'Comida': ['Verdulería','Supermercado','Almacén','Carnicería/Pollería','Panadería','Delivery','Bar/Café','Restaurante','Bebidas/Kiosco'],
+  'Transporte': ['Colectivo/Bus','Subte/Tren','Uber/Cabify/Didi','Taxi','Combustible','Estacionamiento/Peaje','Mantenimiento/Service','Seguro del auto','Bicicleta/Monopatín'],
+  'Vivienda/Servicios': ['Alquiler','Expensas','Luz','Agua','Gas','Internet/Teléfono','Impuestos municipales','Mantenimiento/Reparaciones','Seguro del hogar'],
+  'Salud': ['Consulta privada','Medicina prepaga/Obra social','Farmacia','Estudios/Análisis','Odontología','Óptica','Kinesiología/Terapia','Emergencias'],
+  'Ocio': ['Cine/Teatro','Streaming (Netflix, Spotify, etc.)','Salidas nocturnas/Bar','Gimnasio/Deportes','Hobbies','Viajes/Turismo','Eventos/Recitales'],
+  'Indumentaria': ['Ropa','Calzado','Accesorios','Ropa de trabajo'],
+  'Educación': ['Cuota/Matrícula','Libros/Materiales','Cursos online','Útiles'],
+};
+const CATS_INGRESO = ['Sueldo','Freelance','Reembolso','Regalo','Otro'];
+const CATS_GASTO_EXT = ['Alquiler','Luz','Agua','Gas','Internet','Teléfono','Combustible','Lavandería','Mascotas','Cuidado personal','Regalos','Suscripciones','Impuestos','Seguros','Reparaciones/Mantenimiento','Tecnología','Deportes','Cultura (libros/cine/música)','Bebés/Niños','Donaciones','Viajes','Comisiones bancarias','Delivery','Bar/Café','Pago de deuda/préstamo'];
+const CATS_INGRESO_EXT = ['Alquiler cobrado','Venta de artículos','Intereses/Inversiones','Aguinaldo','Bono','Préstamo recibido','Cobro de deuda/préstamo','Reintegro de impuestos','Herencia'];
+const MONEDAS = ['ARS','USD','EUR','BRL','CLP','UYU','GBP','MXN','JPY','CNY','THB'];
+const CUENTAS = ['Efectivo','Mercado Pago','Banco Nación','Personal Pay','Belo','Wells Fargo','Revolut','N26','Banco Galicia','Banco Santander','BBVA','Banco Provincia','Ualá','Modo','Brubank','Wise','Otra tarjeta/cuenta'];
+const BUCKETS_DEFAULT = [
+  'Efectivo|ARS', 'Efectivo|USD', 'Efectivo|EUR',
+  'Mercado Pago|ARS', 'Banco Nación|ARS', 'Personal Pay|ARS',
+  'Belo|USD', 'Wells Fargo|USD', 'Revolut|EUR', 'N26|EUR'
+];
+const NOMBRES_MONEDA = {
+  ARS:'Peso argentino', USD:'Dólar estadounidense', EUR:'Euro', BRL:'Real brasileño',
+  CLP:'Peso chileno', UYU:'Peso uruguayo', GBP:'Libra esterlina', MXN:'Peso mexicano',
+  JPY:'Yen japonés', CNY:'Yuan chino'
+};
+const DIAS = ['D','L','M','X','J','V','S'];
+const STORE_KEY = 'ficha-gastos-ledger';
+const FX_KEY = 'ficha-gastos-fx';
+const FX_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+function dateStr(offset=0){
+  const d = new Date(); d.setDate(d.getDate()-offset);
+  return d.toISOString().slice(0,10);
+}
+function dayLabel(offset){
+  const d = new Date(); d.setDate(d.getDate()-offset);
+  return DIAS[d.getDay()];
+}
+function loadLedger(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    const l = raw ? JSON.parse(raw) : {};
+    let cambiado = false;
+    Object.keys(l).forEach(dstr=>{
+      (l[dstr].entries||[]).forEach(e=>{
+        if(!e.id){ e.id = 'e' + Date.now() + Math.random().toString(36).slice(2,8); cambiado = true; }
+      });
+    });
+    if(cambiado){
+      try{ localStorage.setItem(STORE_KEY, JSON.stringify(l)); }catch(err){}
+    }
+    return l;
+  }catch(e){ return {}; }
+}
+const VERSION_KEY = 'ficha-gastos-ledger-version';
+const PIN_KEY = 'ficha-gastos-pin';
+
+function hashPin(pin){
+  let h = 0;
+  for(let i=0;i<pin.length;i++){ h = (h*31 + pin.charCodeAt(i)) | 0; }
+  return String(h);
+}
+
+function pinConfigurado(){ return !!localStorage.getItem(PIN_KEY); }
+
+function mostrarCandado(){
+  document.getElementById('lockScreen').style.display = 'flex';
+  document.querySelector('.wrap').style.display = 'none';
+  document.querySelector('.tab-bar').style.display = 'none';
+  document.getElementById('lockPinInput').focus();
+}
+function ocultarCandado(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.querySelector('.wrap').style.display = 'block';
+  document.querySelector('.tab-bar').style.display = 'flex';
+}
+function intentarDesbloquear(){
+  const val = document.getElementById('lockPinInput').value;
+  if(hashPin(val) === localStorage.getItem(PIN_KEY)){
+    ocultarCandado();
+    document.getElementById('lockPinInput').value = '';
+    document.getElementById('lockError').textContent = '';
+  } else {
+    document.getElementById('lockError').textContent = 'PIN incorrecto.';
+    document.getElementById('lockPinInput').value = '';
+    document.getElementById('lockPinInput').focus();
+  }
+}
+let ledgerVersion = localStorage.getItem(VERSION_KEY);
+
+function saveLedger(l){
+  try{
+    const versionEnDisco = localStorage.getItem(VERSION_KEY);
+    if(versionEnDisco !== ledgerVersion){
+      alert('Esta ficha se actualizó desde otra pestaña o ventana abierta al mismo tiempo. Para no mezclar datos mal, la página se va a recargar — lo que acabás de cargar acá no se guardó, tenés que cargarlo de nuevo después.');
+      location.reload();
+      return;
+    }
+    const nuevaVersion = String(Date.now()) + '-' + Math.random().toString(36).slice(2,6);
+    localStorage.setItem(STORE_KEY, JSON.stringify(l));
+    localStorage.setItem(VERSION_KEY, nuevaVersion);
+    ledgerVersion = nuevaVersion;
+    document.getElementById('saveErr').textContent = '';
+  }catch(e){
+    document.getElementById('saveErr').textContent = 'No se pudo guardar en este navegador.';
+  }
+}
+
+let ledger = loadLedger();
+let saldosIniciales = cargarSaldosIniciales();
+let cuentasControladas = cargarCuentasControladas();
+let tipo = null;
+let metodo = '';
+let categoria = null;
+let subcategoria = '';
+let categoriaSugerida = null;
+let moneda = 'ARS';
+let monedaVisualizacion = (()=>{ try{ return localStorage.getItem('ficha-gastos-moneda-vis') || 'ARS'; }catch(e){ return 'ARS'; } })(); // moneda en la que se muestran Hoy, Historial y Resumen mensual (siempre con la cotización de hoy)
+let cotizacionManual = '';
+let cuenta = '';
+let cuentaDestino = '';
+
+// --- helpers de reseteo compartidos: agrupan campos que siempre viajan juntos ---
+// usado en: cambio de tipo, cancelar edición, fichada exitosa
+function resetearCategoria(){
+  categoria = null;
+  subcategoria = '';
+  categoriaSugerida = null;
+}
+// usado en: cambio de tipo (fichada exitosa y cancelar edición resetean solo cuentaDestino a propósito, no cuenta)
+function resetearCuentas(){
+  cuenta = '';
+  cuentaDestino = '';
+}
+// usado en: cancelar edición, fichada exitosa
+function resetearMontoYNota(){
+  document.getElementById('amountInput').value = '';
+  document.getElementById('notaInput').value = '';
+}
+let fxCache = loadFxCache();
+let editing = null; // { dstr, id } cuando estamos corrigiendo un movimiento existente
+let pendingDelete = null; // id del movimiento que está pidiendo confirmación para borrarse
+let historialAbierto = null; // se setea a "hoy" apenas sabemos qué día es (ver abajo)
+let historialLimite = 60; // cuántos días se arman en el DOM de una; el resto se pide con "cargar más"
+let today = dateStr(0); // ya no es const: se refresca solo si la app queda abierta cruzando la medianoche
+historialAbierto = today; // el día de hoy arranca ya desplegado en Historial
+
+// regla fija: toda lista desplegable se ordena alfabéticamente siempre, sin excepción
+function ordenAlfabetico(arr){ return [...arr].sort((a,b)=>a.localeCompare(b,'es')); }
+
+function loadFxCache(){
+  try{
+    const raw = localStorage.getItem(FX_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveFxCache(fx){
+  fxCache = fx;
+  try{ localStorage.setItem(FX_KEY, JSON.stringify(fx)); }catch(e){}
+}
+
+function promediar(valores){
+  const validos = valores.filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+  if(validos.length === 0) return null;
+  return validos.reduce((a,b)=>a+b, 0) / validos.length;
+}
+
+async function fetchFx(force){
+  if(!force && fxCache && (Date.now() - fxCache.fetchedAt) < FX_MAX_AGE_MS) return;
+
+  // candidatos por moneda: un array de valores posibles, uno por fuente, para promediar al final
+  const candidatos = { USD:[], EUR:[], BRL:[], CLP:[], UYU:[], GBP:[], MXN:[], JPY:[], CNY:[], CAD:[], AUD:[], CHF:[], THB:[] };
+  let oficialInfo = null, oficialPuro = null, fecha = null;
+
+  // fuente 1: dolarapi.com (además de sumar candidatos, guarda oficial/blue/mep/ccl tal cual para su propia card)
+  try{
+    const [oficial, blue, bolsa, ccl, eur, brl, clp, uyu] = await Promise.all([
+      fetch('https://dolarapi.com/v1/dolares/oficial').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/dolares/blue').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/dolares/bolsa').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/dolares/contadoconliqui').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/eur').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/brl').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/clp').then(r=>r.json()),
+      fetch('https://dolarapi.com/v1/cotizaciones/uyu').then(r=>r.json()),
+    ]);
+    oficialInfo = { blue: blue.venta, mep: bolsa.venta, ccl: ccl.venta };
+    oficialPuro = oficial.venta;
+    fecha = oficial.fechaActualizacion;
+    candidatos.USD.push(oficial.venta);
+    candidatos.EUR.push(eur.venta);
+    candidatos.BRL.push(brl.venta);
+    candidatos.CLP.push(clp.venta);
+    candidatos.UYU.push(uyu.venta);
+  }catch(e){ /* dolarapi caída: seguimos con las otras fuentes */ }
+
+  // fuente 2: fawazahmed0/exchange-api (jsdelivr, con respaldo Cloudflare)
+  try{
+    let data;
+    try{
+      data = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/ars.json').then(r=>r.json());
+    }catch(e2){
+      data = await fetch('https://latest.currency-api.pages.dev/v1/currencies/ars.json').then(r=>r.json());
+    }
+    const porArs = data.ars; // 1 ARS = X de cada moneda -> invertimos
+    const mapa = { USD:'usd', EUR:'eur', BRL:'brl', CLP:'clp', UYU:'uyu', GBP:'gbp', MXN:'mxn', JPY:'jpy', CNY:'cny', CAD:'cad', AUD:'aud', CHF:'chf', THB:'thb' };
+    Object.entries(mapa).forEach(([cod, clave])=>{
+      if(porArs && porArs[clave]) candidatos[cod].push(1 / porArs[clave]);
+    });
+  }catch(e){ /* esta fuente falló, seguimos con lo demás */ }
+
+  // fuente 3: open.er-api.com (base USD, no requiere clave)
+  try{
+    const data = await fetch('https://open.er-api.com/v6/latest/USD').then(r=>r.json());
+    const r = data.rates;
+    if(r && r.ARS){
+      const usdEnArs = r.ARS;
+      candidatos.USD.push(usdEnArs);
+      const mapa = { EUR:'EUR', BRL:'BRL', CLP:'CLP', UYU:'UYU', GBP:'GBP', MXN:'MXN', JPY:'JPY', CNY:'CNY', CAD:'CAD', AUD:'AUD', CHF:'CHF', THB:'THB' };
+      Object.entries(mapa).forEach(([cod, clave])=>{
+        if(r[clave]) candidatos[cod].push(usdEnArs / r[clave]);
+      });
+    }
+  }catch(e){ /* esta fuente falló, seguimos con lo demás */ }
+
+  // fuente 4: CoinGecko (cripto), directo en pesos
+  const cripto = {};
+  try{
+    const ids = 'bitcoin,ethereum,tether,binancecoin,solana,ripple,cardano,dogecoin';
+    const data = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=ars`).then(r=>r.json());
+    const mapaCripto = { BTC:'bitcoin', ETH:'ethereum', USDT:'tether', BNB:'binancecoin', SOL:'solana', XRP:'ripple', ADA:'cardano', DOGE:'dogecoin' };
+    Object.entries(mapaCripto).forEach(([cod, id])=>{
+      if(data[id] && data[id].ars) cripto[cod] = data[id].ars;
+    });
+  }catch(e){ /* cripto falló, seguimos sin eso */ }
+
+  const nuevo = {};
+  Object.keys(candidatos).forEach(cod=>{
+    const prom = promediar(candidatos[cod]);
+    if(prom!==null) nuevo[cod] = prom;
+  });
+  Object.assign(nuevo, cripto);
+  if(oficialInfo){
+    nuevo.blue = oficialInfo.blue; nuevo.mep = oficialInfo.mep; nuevo.ccl = oficialInfo.ccl;
+  }
+  if(oficialPuro!==null) nuevo.oficialPuro = oficialPuro;
+
+  if(Object.keys(nuevo).length > 0){
+    nuevo.fetchedAt = Date.now();
+    nuevo.fecha = fecha || new Date().toISOString();
+    saveFxCache({ ...(fxCache||{}), ...nuevo });
+  }
+  renderFx();
+}
+
+const TILE_FIAT = ['USD','EUR','GBP','BRL','CLP','UYU','MXN','JPY','CNY','CAD','AUD','CHF'];
+const TILE_CRYPTO = ['BTC','ETH','USDT','BNB','SOL','XRP','ADA','DOGE'];
+const NOMBRES_TILE = {
+  USD:'Dólar', EUR:'Euro', GBP:'Libra', BRL:'Real', CLP:'$ chileno', UYU:'$ uruguayo',
+  MXN:'$ mexicano', JPY:'Yen', CNY:'Yuan', CAD:'$ canadiense', AUD:'$ australiano', CHF:'Franco suizo',
+  BTC:'Bitcoin', ETH:'Ethereum', USDT:'Tether', BNB:'BNB', SOL:'Solana', XRP:'XRP', ADA:'Cardano', DOGE:'Dogecoin'
+};
+let tileMonedas = (()=>{ try{ const s = localStorage.getItem('ficha-gastos-tiles'); return s ? JSON.parse(s) : ['EUR','GBP']; }catch(e){ return ['EUR','GBP']; } })(); // qué muestra cada uno de los 2 casilleros
+
+function renderFx(){
+  const primary = document.getElementById('fxPrimary');
+  const updated = document.getElementById('fxUpdated');
+  const argGrid = document.getElementById('fxArgGrid');
+  if(!fxCache){
+    primary.textContent = 'Sin datos';
+    updated.textContent = '';
+    argGrid.innerHTML = '';
+    const refreshBtn = document.getElementById('fxRefreshBtn');
+    refreshBtn.style.color = 'var(--gasto)';
+    refreshBtn.style.borderColor = 'var(--gasto)';
+    renderFxTiles();
+    return;
+  }
+  primary.textContent = fxCache.oficialPuro ? '$'+fxCache.oficialPuro.toLocaleString('es-AR') : '—';
+  const fecha = new Date(fxCache.fecha || fxCache.fetchedAt);
+  const pad = n => String(n).padStart(2,'0');
+  const hora = pad(fecha.getHours())+':'+pad(fecha.getMinutes())+':'+pad(fecha.getSeconds());
+  const fechaTxt = pad(fecha.getDate())+'-'+pad(fecha.getMonth()+1)+'-'+fecha.getFullYear();
+  updated.innerHTML = hora + '<br>' + fechaTxt;
+  const horasPasadas = (Date.now() - fecha.getTime()) / (1000*60*60);
+  const refreshBtn = document.getElementById('fxRefreshBtn');
+  refreshBtn.style.color = horasPasadas > 2 ? 'var(--gasto)' : 'var(--ingreso)';
+  refreshBtn.style.borderColor = horasPasadas > 2 ? 'var(--gasto)' : 'var(--ingreso)';
+  argGrid.innerHTML = `
+    <div>Blue: <b class="mono">${fxCache.blue?('$'+fxCache.blue.toLocaleString('es-AR')):'—'}</b></div>
+    <div>MEP: <b class="mono">${fxCache.mep?('$'+fxCache.mep.toLocaleString('es-AR')):'—'}</b></div>
+    <div>CCL: <b class="mono">${fxCache.ccl?('$'+fxCache.ccl.toLocaleString('es-AR')):'—'}</b></div>
+  `;
+  renderFxTiles();
+}
+
+function renderFxTiles(){
+  const grid = document.getElementById('fxTileGrid');
+  grid.innerHTML = '';
+  tileMonedas.forEach((cod, i)=>{
+    const tile = document.createElement('div');
+    tile.className = 'fx-tile';
+    const select = document.createElement('select');
+    select.title = NOMBRES_TILE[cod];
+    select.innerHTML =
+      '<optgroup label="Monedas">' + ordenAlfabetico(TILE_FIAT).map(c=>`<option value="${c}"${c===cod?' selected':''}>${c}</option>`).join('') + '</optgroup>' +
+      '<optgroup label="Cripto">' + ordenAlfabetico(TILE_CRYPTO).map(c=>`<option value="${c}"${c===cod?' selected':''}>${c}</option>`).join('') + '</optgroup>';
+    select.onchange = (ev)=>{ tileMonedas[i] = ev.target.value; try{ localStorage.setItem('ficha-gastos-tiles', JSON.stringify(tileMonedas)); }catch(err){} renderFxTiles(); };
+    const val = document.createElement('div');
+    val.className = 'fx-tile-val mono';
+    const rate = fxCache ? fxCache[cod] : null;
+    val.textContent = rate ? '$'+rate.toLocaleString('es-AR', {maximumFractionDigits: rate<10?4:0}) : 'Sin datos';
+    tile.appendChild(select);
+    tile.appendChild(val);
+    grid.appendChild(tile);
+  });
+}
+
+// tasa (en ARS) de una moneda al momento de fichar, usando la última cotización cacheada
+function tasaActual(mon){
+  if(mon==='ARS') return 1;
+  if(!fxCache) return null;
+  return fxCache[mon] ?? null;
+}
+
+// igual que tasaActual, pero si no hay automática, usa la que el usuario haya escrito a mano
+function tasaEfectiva(mon){
+  const auto = tasaActual(mon);
+  if(auto) return auto;
+  const manual = parseFloat(cotizacionManual);
+  return (manual && manual > 0) ? manual : null;
+}
+
+// saca una foto de las cotizaciones actuales para las 5 monedas, usando la manual si corresponde a la que se está fichando
+function snapshotTasas(){
+  const monedas = ['USD','EUR','BRL','CLP','UYU','GBP','MXN','JPY','CNY','THB'];
+  const snap = {};
+  monedas.forEach(m=>{ snap[m] = (m===moneda) ? tasaEfectiva(m) : tasaActual(m); });
+  return snap;
+}
+
+// valor de un movimiento en la moneda pedida, usando SIEMPRE la cotización guardada en el momento en que se fichó
+function valorHistoricoEnMoneda(e, monedaObjetivo){
+  const ars = montoEnARS(e);
+  if(ars===null) return null;
+  if(monedaObjetivo==='ARS') return ars;
+  const snap = e.fxSnapshot || (e.usdRateAtEntry ? {USD:e.usdRateAtEntry} : null);
+  const tasa = snap ? snap[monedaObjetivo] : null;
+  if(!tasa) return null;
+  return ars / tasa;
+}
+
+// formatea el valor histórico de UN movimiento en la moneda de visualización elegida
+function fmtEntradaEnVisualizacion(e){
+  if(monedaVisualizacion==='ARS') return null; // no hace falta, ya se muestra en pesos como siempre
+  const val = valorHistoricoEnMoneda(e, monedaVisualizacion);
+  if(val===null) return { texto: 'sin cotización histórica', ok:false };
+  return { texto: monedaVisualizacion + ' ' + val.toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2}), ok:true };
+}
+
+// suma un conjunto de movimientos a la moneda de visualización, cada uno con SU PROPIA cotización histórica
+function sumarEnVisualizacion(entries){
+  let total = 0, sinHistorico = 0;
+  entries.forEach(e=>{
+    const val = valorHistoricoEnMoneda(e, monedaVisualizacion);
+    if(val===null){ sinHistorico++; return; }
+    total += val;
+  });
+  return { total, sinHistorico };
+}
+
+// texto de un total: si se está viendo en ARS, solo el peso; si no, la moneda elegida grande y el peso chico abajo
+function fmtTotalDoble(montoARS, entriesDelGrupo){
+  if(monedaVisualizacion==='ARS') return '$' + montoARS.toLocaleString('es-AR');
+  const { total, sinHistorico } = sumarEnVisualizacion(entriesDelGrupo);
+  const principal = monedaVisualizacion + ' ' + total.toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const secundaria = '$' + montoARS.toLocaleString('es-AR') + (sinHistorico>0 ? ' · '+sinHistorico+' sin histórico' : '');
+  return principal + ' <span class="usd-eq">'+secundaria+'</span>';
+}
+
+// convierte una entrada a su equivalente en ARS, usando la tasa guardada en el momento en que se fichó
+function montoEnARS(e){
+  if(!e.moneda || e.moneda==='ARS') return e.amount;
+  if(e.fxRateARS) return e.amount * e.fxRateARS;
+  return null; // sin cotización: no se puede convertir, no debe sumarse a los totales en pesos
+}
+
+// equivalente en USD de un movimiento, usando la cotización oficial guardada en el momento exacto de fichar (no la de hoy)
+function usdEquivalente(e){
+  const ars = montoEnARS(e);
+  if(ars===null || !e.usdRateAtEntry) return null;
+  return ars / e.usdRateAtEntry;
+}
+
+function dayEntry(dstr){ return ledger[dstr] || { entries: [], noSpend: false }; }
+
+// true si ese día tiene al menos un movimiento con algo incompleto o sin poder validarse
+function diaTieneProblemas(dstr){
+  const d = dayEntry(dstr);
+  if(!d.entries || d.entries.length===0) return false;
+  return d.entries.some(e=>{
+    if(e.tipo==='transferencia') return !e.cuenta || !e.cuentaDestino;
+    if(!e.cuenta) return true;
+    if(!e.categoria) return true;
+    if(montoEnARS(e)===null) return true;
+    return false;
+  });
+}
+
+function metodosActuales(){ return tipo==='ingreso' ? METODOS_INGRESO : METODOS_GASTO; }
+const ALL_CATS_GASTO = [...new Set([...CATS_GASTO, ...CATS_GASTO_EXT])];
+const ALL_CATS_INGRESO = [...new Set([...CATS_INGRESO, ...CATS_INGRESO_EXT])];
+
+// cuenta cuántas veces se usó cada categoría, históricamente, separado por tipo
+function contarUsoCategoria(tipoObjetivo){
+  const counts = {};
+  Object.values(ledger).forEach(d=>{
+    (d.entries||[]).forEach(e=>{
+      if((e.tipo||'gasto')===tipoObjetivo && e.categoria){
+        counts[e.categoria] = (counts[e.categoria]||0) + 1;
+      }
+    });
+  });
+  return counts;
+}
+
+// arma los botones rápidos (las N más usadas) y el desplegable (el resto, alfabético)
+// en frío (sin uso todavía) respeta el orden original de la lista "primaria" como desempate
+let categoriaOrdenCache = {}; // se recalcula una sola vez por día, para que los botones no salten de lugar en medio de una sesión
+
+function categoriasParaTipo(tipoObjetivo){
+  const claveCache = tipoObjetivo + '|' + today;
+  if(categoriaOrdenCache[claveCache]) return categoriaOrdenCache[claveCache];
+  const todas = tipoObjetivo==='gasto' ? ALL_CATS_GASTO : ALL_CATS_INGRESO;
+  const ordenDefault = tipoObjetivo==='gasto' ? CATS_GASTO : CATS_INGRESO;
+  const N = tipoObjetivo==='gasto' ? 8 : 5;
+  const counts = contarUsoCategoria(tipoObjetivo);
+  const conDatos = todas.map(c=>({
+    nombre: c,
+    uso: counts[c] || 0,
+    prioridadDefault: ordenDefault.indexOf(c)
+  }));
+  conDatos.sort((a,b)=>{
+    if(b.uso !== a.uso) return b.uso - a.uso;
+    const aDef = a.prioridadDefault > -1, bDef = b.prioridadDefault > -1;
+    if(aDef && bDef) return a.prioridadDefault - b.prioridadDefault;
+    if(aDef) return -1;
+    if(bDef) return 1;
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+  const rapidas = conDatos.slice(0, N).map(c=>c.nombre);
+  const extendidas = conDatos.slice(N).map(c=>c.nombre).sort((a,b)=>a.localeCompare(b,'es'));
+  const resultado = { rapidas, extendidas };
+  categoriaOrdenCache[claveCache] = resultado;
+  return resultado;
+}
+
+function catsActuales(){ return categoriasParaTipo(tipo).rapidas; }
+function catsExtendidasActuales(){ return categoriasParaTipo(tipo).extendidas; }
+
+function renderForm(){
+  const tipoRow = document.getElementById('tipoRow');
+  tipoRow.innerHTML = '';
+  [['gasto','Gasto'],['ingreso','Ingreso'],['transferencia','Traspaso']].forEach(([id,label])=>{
+    const btn = document.createElement('button');
+    btn.className = 'tipo-btn' + (tipo===id ? ' active '+id : '');
+    btn.textContent = label;
+    btn.onclick = ()=>{
+      tipo = id;
+      metodo = '';
+      resetearCategoria();
+      resetearCuentas();
+      renderForm();
+      document.getElementById('amountInput').focus();
+    };
+    tipoRow.appendChild(btn);
+  });
+
+  const currencyWrap = document.createElement('div');
+  currencyWrap.className = 'currency-wrap';
+  const currencySelect = document.createElement('select');
+  currencySelect.className = 'currency-inline mono';
+  currencySelect.id = 'currencySelect';
+  currencySelect.innerHTML = ordenAlfabetico(MONEDAS).map(m=>`<option value="${m}"${moneda===m?' selected':''}>${m}</option>`).join('');
+  currencySelect.title = NOMBRES_MONEDA[moneda];
+  currencySelect.onchange = (ev)=>{ moneda = ev.target.value; renderForm(); };
+  const currencyArrow = document.createElement('span');
+  currencyArrow.className = 'currency-arrow';
+  currencyArrow.textContent = '▾';
+  currencyWrap.appendChild(currencySelect);
+  currencyWrap.appendChild(currencyArrow);
+  tipoRow.appendChild(currencyWrap);
+
+  const esTransferencia = tipo==='transferencia';
+  document.getElementById('gastoIngresoFields').style.display = esTransferencia ? 'none' : 'block';
+  document.getElementById('transferenciaFields').style.display = esTransferencia ? 'block' : 'none';
+
+  const methodsRow = document.getElementById('methodsRow');
+  methodsRow.innerHTML = '';
+  metodosActuales().forEach(m=>{
+    const btn = document.createElement('button');
+    btn.className = 'method-btn' + (metodo===m.id ? ' active' : '');
+    btn.textContent = m.label;
+    btn.onclick = ()=>{ metodo = m.id; renderForm(); };
+    methodsRow.appendChild(btn);
+  });
+
+  const cuentaSelect = document.getElementById('cuentaSelect');
+  cuentaSelect.innerHTML = '<option value="">Elegí una cuenta</option>' +
+    ordenAlfabetico(CUENTAS).map(c=>`<option value="${c}"${cuenta===c?' selected':''}>${c}</option>`).join('');
+  cuentaSelect.onchange = (ev)=>{ cuenta = ev.target.value; renderForm(); };
+
+  const cuentaOrigenSelect = document.getElementById('cuentaOrigenSelect');
+  const cuentaDestinoSelect = document.getElementById('cuentaDestinoSelect');
+  cuentaOrigenSelect.innerHTML = '<option value="">Elegí una cuenta</option>' +
+    ordenAlfabetico(CUENTAS).map(c=>`<option value="${c}"${cuenta===c?' selected':''}>${c}</option>`).join('');
+  cuentaDestinoSelect.innerHTML = '<option value="">Elegí una cuenta</option>' +
+    ordenAlfabetico(CUENTAS).map(c=>`<option value="${c}"${cuentaDestino===c?' selected':''}>${c}</option>`).join('');
+  cuentaOrigenSelect.onchange = (ev)=>{ cuenta = ev.target.value; renderForm(); };
+  cuentaDestinoSelect.onchange = (ev)=>{ cuentaDestino = ev.target.value; renderForm(); };
+  const mismaCuenta = esTransferencia && cuenta && cuentaDestino && cuenta===cuentaDestino;
+  document.getElementById('transferenciaWarn').style.display = mismaCuenta ? 'block' : 'none';
+
+  const catGrid = document.getElementById('catGrid');
+  catGrid.innerHTML = '';
+  catsActuales().forEach(c=>{
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (categoria===c ? ' active' : '') + (categoriaSugerida===c && categoria!==c ? ' suggested' : '');
+    btn.textContent = c;
+    btn.onclick = ()=>{ categoria = c; subcategoria = ''; renderForm(); };
+    catGrid.appendChild(btn);
+  });
+
+  const catExtSelect = document.getElementById('catExtSelect');
+  const extList = catsExtendidasActuales();
+  catExtSelect.innerHTML = '<option value="">Más categorías…</option>' +
+    extList.map(c=>`<option value="${c}"${categoria===c ? ' selected' : ''}>${c}</option>`).join('');
+  if(!extList.includes(categoria)) catExtSelect.value = '';
+  catExtSelect.onchange = (ev)=>{
+    if(ev.target.value){ categoria = ev.target.value; subcategoria = ''; renderForm(); }
+  };
+
+  const subcatSelect = document.getElementById('subcategoriaSelect');
+  const subcatsDisponibles = (tipo==='gasto' && categoria) ? (SUBCATEGORIAS[categoria] || []) : [];
+  if(subcatsDisponibles.length > 0){
+    subcatSelect.style.display = 'block';
+    subcatSelect.innerHTML = '<option value="">Subcategoría (opcional)</option>' +
+      ordenAlfabetico(subcatsDisponibles).map(s=>`<option value="${s}"${subcategoria===s?' selected':''}>${s}</option>`).join('');
+    subcatSelect.onchange = (ev)=>{ subcategoria = ev.target.value; };
+  } else {
+    subcatSelect.style.display = 'none';
+    subcategoria = '';
+  }
+
+  const amountInput = document.getElementById('amountInput');
+
+  const manualRateWrap = document.getElementById('manualRateWrap');
+  const necesitaManual = moneda!=='ARS' && !tasaActual(moneda);
+  manualRateWrap.style.display = necesitaManual ? 'block' : 'none';
+  if(necesitaManual){
+    document.getElementById('manualRateLabel').textContent = `No hay cotización automática para ${moneda}. Escribí cuántos pesos vale 1 ${moneda}, o dejalo en blanco y se ficha sin convertir.`;
+  } else {
+    cotizacionManual = '';
+    document.getElementById('manualRateInput').value = '';
+  }
+
+  document.querySelectorAll('.campo-error').forEach(el=>el.classList.remove('campo-error'));
+
+  const noSpendBtn = document.getElementById('noSpendBtn');
+  const hayMovimientos = dayEntry(today).entries.length > 0;
+  noSpendBtn.disabled = hayMovimientos;
+  noSpendBtn.title = hayMovimientos ? 'Ya hay movimientos cargados ese día. Borralos primero si querés marcarlo como sin movimientos.' : '';
+}
+
+// arma el contenido interno de un movimiento (swatch, categoria+sub, metodo/cuenta/nota, monto) - sin acciones, reutilizable en Hoy e Historial
+function construirContenidoMovimiento(e){
+  if(e.tipo==='transferencia'){
+    return `
+      <div class="entry-left">
+        <span><span class="swatch" style="background:var(--blue)"></span>Traspaso</span>
+        <span class="entry-cat">${e.cuenta||'?'} → ${e.cuentaDestino||'?'}${e.nota ? ' — ' + e.nota : ''}</span>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end;">
+        <span class="mono" style="color:var(--blue);">${e.moneda||'ARS'} ${e.amount.toLocaleString('es-AR')}</span>
+      </div>
+    `;
+  }
+  const isIngreso = e.tipo==='ingreso';
+  const monedaOriginal = e.moneda || 'ARS';
+  const mostrarOriginal = monedaOriginal !== monedaVisualizacion;
+  const ars = montoEnARS(e);
+  const usdEq = usdEquivalente(e);
+
+  let bigHtml, smallHtml;
+  if(ars===null){
+    bigHtml = `${isIngreso?'+':'-'}${monedaOriginal} ${e.amount.toLocaleString('es-AR')}`;
+    smallHtml = 'sin convertir';
+  } else if(monedaVisualizacion==='ARS'){
+    bigHtml = `${isIngreso?'+':'-'}$${ars.toLocaleString('es-AR')}`;
+    smallHtml = usdEq!==null ? 'US$'+usdEq.toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2}) : '';
+  } else {
+    const vis = fmtEntradaEnVisualizacion(e);
+    if(vis.ok){
+      bigHtml = `${isIngreso?'+':'-'}${vis.texto}`;
+      smallHtml = '$'+ars.toLocaleString('es-AR');
+    } else {
+      bigHtml = `${isIngreso?'+':'-'}$${ars.toLocaleString('es-AR')}`;
+      smallHtml = 'sin cotización histórica en '+monedaVisualizacion;
+    }
+  }
+
+  return `
+    <div class="entry-left">
+      <span><span class="swatch" style="background:${isIngreso?'var(--ingreso)':'var(--gasto)'}"></span>${e.categoria || 'Sin categorizar'}${e.subcategoria ? ' · '+e.subcategoria : ''}</span>
+      <span class="entry-cat">${[e.metodo, e.cuenta].filter(Boolean).join(' · ')}${!e.cuenta ? ' ⚠ sin cuenta' : ''}${e.nota ? ' — ' + e.nota : ''}${mostrarOriginal ? ' · ' + monedaOriginal + ' ' + e.amount.toLocaleString('es-AR') + (monedaOriginal!=='ARS' && !e.fxRateARS ? ' ⚠ sin cotización' : '') : ''}</span>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end;">
+      <span class="mono" style="color:${ars===null?'var(--danger)':(isIngreso?'var(--ingreso)':'var(--gasto)')};">${bigHtml}</span>
+      <span class="mono usd-eq">${smallHtml}</span>
+    </div>
+  `;
+}
+
+// arma el bloque de acciones (editar/borrar, o confirmar/cancelar si está pendiente el borrado)
+function construirAccionesHtml(id){
+  return pendingDelete===id
+    ? `<div class="entry-actions">
+        <button data-action="confirm-delete" style="color:var(--danger); border-color:var(--danger); width:auto; padding:0 6px; font-size:11px;">Borrar</button>
+        <button data-action="cancel-delete" style="width:auto; padding:0 6px; font-size:11px;">Cancelar</button>
+      </div>`
+    : `<div class="entry-actions">
+        <button data-action="edit" title="Editar">✏️</button>
+        <button data-action="delete" title="Borrar">🗑</button>
+      </div>`;
+}
+
+// conecta los botones de accion ya insertados en el DOM a sus handlers reales
+function conectarAcciones(row, dstr, id){
+  if(pendingDelete===id){
+    row.querySelector('[data-action="confirm-delete"]').onclick = ()=>borrarMovimiento(dstr, id);
+    row.querySelector('[data-action="cancel-delete"]').onclick = ()=>{ pendingDelete=null; render(); };
+  } else {
+    row.querySelector('[data-action="edit"]').onclick = ()=>empezarEdicion(dstr, id);
+    row.querySelector('[data-action="delete"]').onclick = ()=>{ pendingDelete = id; render(); };
+  }
+}
+
+function render(){
+  document.getElementById('todayLabel').textContent = today;
+
+  const realToday = dayEntry(today);
+  const todayQualifies = realToday.entries.length > 0 || realToday.noSpend;
+
+  let streak = 0;
+  let cursor = todayQualifies ? 0 : 1;
+  while(true){
+    const d = dayEntry(dateStr(cursor));
+    if(d.entries.length>0 || d.noSpend){ streak++; cursor++; } else break;
+    if(cursor>365) break;
+  }
+
+  const punchRow = document.getElementById('punchRow');
+  punchRow.innerHTML = '';
+  for(let offset=6; offset>=0; offset--){
+    const dstr = dateStr(offset);
+    const d = dayEntry(dstr);
+    let status = 'missed', simbolo = '⭕️';
+    if(offset===0 && !todayQualifies){ status='pending'; simbolo = '⭕️'; }
+    else if(d.noSpend || d.entries.length>0){
+      if(diaTieneProblemas(dstr)){ status='warn'; simbolo = '⚠️'; }
+      else { status='ok'; simbolo = '✅'; }
+    }
+    const col = document.createElement('div');
+    col.className = 'punch';
+    col.innerHTML = `<div class="dot ${status}">${simbolo==='⭕️'?'':simbolo}</div><span class="daylabel">${dayLabel(offset)}</span>`;
+    punchRow.appendChild(col);
+  }
+
+  renderForm();
+  renderHistory();
+  renderResumenMensual();
+  renderBackupWarning();
+  renderControlBadge();
+}
+
+function renderHistory(){
+  const wrap = document.getElementById('historyList');
+  const dias = Object.keys(ledger)
+    .filter(d => (ledger[d].entries && ledger[d].entries.length > 0) || ledger[d].noSpend)
+    .sort().reverse();
+
+  if(dias.length === 0){
+    wrap.innerHTML = '<div class="empty">Todavía no hay días cargados.</div>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+  const diasAMostrar = dias.slice(0, historialLimite);
+  diasAMostrar.forEach(dstr=>{
+    const d = ledger[dstr];
+    const entries = d.entries || [];
+    const gastosEntries = entries.filter(e=>e.tipo==='gasto');
+    const ingresosEntries = entries.filter(e=>e.tipo==='ingreso');
+    const gastos = gastosEntries.reduce((s,e)=>{ const a=montoEnARS(e); return a===null?s:s+a; },0);
+    const ingresos = ingresosEntries.reduce((s,e)=>{ const a=montoEnARS(e); return a===null?s:s+a; },0);
+    const neto = ingresos - gastos;
+    const sinMovs = entries.length === 0 && d.noSpend;
+    let netoTexto;
+    if(sinMovs){
+      netoTexto = '—';
+    } else if(monedaVisualizacion==='ARS'){
+      netoTexto = (neto>=0?'+':'') + '$' + neto.toLocaleString('es-AR');
+    } else {
+      const vi = sumarEnVisualizacion(ingresosEntries).total;
+      const vg = sumarEnVisualizacion(gastosEntries).total;
+      const netoVis = vi - vg;
+      netoTexto = (netoVis>=0?'+':'') + monedaVisualizacion + ' ' + netoVis.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+
+    const abrevDia = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'][new Date(dstr+'T12:00:00').getDay()];
+
+    const det = document.createElement('details');
+    det.open = (historialAbierto === dstr);
+    det.className = 'history-item';
+    det.ontoggle = ()=>{ historialAbierto = det.open ? dstr : (historialAbierto===dstr ? null : historialAbierto); };
+
+    const resumenHtml = `
+      <span class="mono">${dstr} <span class="entry-cat">(${abrevDia})</span></span>
+      <span class="entry-cat">${sinMovs ? 'sin movimientos' : entries.length + (entries.length===1 ? ' mov.' : ' mov.')}</span>
+      <span class="mono" style="color:${sinMovs ? 'var(--text-dim)' : (neto>=0 ? 'var(--ingreso)' : 'var(--gasto)')}">${netoTexto}</span>
+    `;
+
+    let panelHtml;
+    if(entries.length===0){
+      panelHtml = `
+        <div class="empty" style="padding:8px 0;">Día marcado sin movimientos.</div>
+        <button type="button" class="btn-secondary" data-quitar-marca="${dstr}" style="width:auto; padding:4px 8px; margin-top:0; font-size:11px;">Quitar marca</button>
+      `;
+    } else {
+      panelHtml = entries.map(e=>`<div class="entry-row" style="padding:6px 0;" data-id="${e.id}">${construirContenidoMovimiento(e)}${construirAccionesHtml(e.id)}</div>`).join('');
+    }
+
+    det.innerHTML = `
+      <summary class="history-row">${resumenHtml}</summary>
+      <div class="history-expand-panel">
+        ${panelHtml}
+      </div>
+    `;
+    det.querySelectorAll('.entry-row[data-id]').forEach(rowEl=>{
+      conectarAcciones(rowEl, dstr, rowEl.dataset.id);
+    });
+    const quitarMarcaBtn = det.querySelector('[data-quitar-marca]');
+    if(quitarMarcaBtn){
+      quitarMarcaBtn.onclick = ()=>{
+        ledger[dstr] = { entries: dayEntry(dstr).entries, noSpend: false };
+        saveLedger(ledger);
+        render();
+      };
+    }
+
+    wrap.appendChild(det);
+  });
+
+  if(dias.length > historialLimite){
+    const masBtn = document.createElement('button');
+    masBtn.type = 'button';
+    masBtn.className = 'btn-secondary';
+    masBtn.style.cssText = 'margin-top:8px; font-size:12px;';
+    masBtn.textContent = `Cargar ${Math.min(60, dias.length-historialLimite)} días más (quedan ${dias.length-historialLimite})`;
+    masBtn.onclick = ()=>{ historialLimite += 60; renderHistory(); };
+    wrap.appendChild(masBtn);
+  }
+}
+
+
+function renderCategoriaBreakdown(elId, dataObj){
+  const el = document.getElementById(elId);
+  const entries = Object.entries(dataObj).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0){
+    el.innerHTML = '<div class="empty">Sin movimientos este mes.</div>';
+    return;
+  }
+  const LIMITE = 5;
+  const top = entries.slice(0, LIMITE);
+  const resto = entries.slice(LIMITE);
+  const restoTotal = resto.reduce((s,[,v])=>s+v, 0);
+
+  const filas = top.map(([cat,val])=>({ cat, val }));
+  if(restoTotal > 0) filas.push({ cat: `Otros (${resto.length})`, val: restoTotal });
+
+  const fmtMonto = monedaVisualizacion==='ARS'
+    ? (v)=>'$'+Math.round(v).toLocaleString('es-AR')
+    : (v)=>monedaVisualizacion+' '+v.toLocaleString('es-AR',{minimumFractionDigits:2, maximumFractionDigits:2});
+
+  el.innerHTML = filas.map(f=>`
+    <div class="cat-summary-row">
+      <div class="cat-summary-label">
+        <span>${f.cat}</span>
+        <span class="mono">${fmtMonto(f.val)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function mesesConDatos(){
+  const set = new Set();
+  Object.keys(ledger).forEach(dstr=>{
+    const d = ledger[dstr];
+    if((d.entries && d.entries.length>0) || d.noSpend) set.add(dstr.slice(0,7));
+  });
+  return Array.from(set).sort().reverse();
+}
+
+const NOMBRES_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+// agrupa TODA la ficha por mes en una sola pasada, en vez de recorrer todo de nuevo por cada mes
+function agruparPorMes(){
+  const porMes = {};
+  const vacio = ()=>({ totalGastos:0, totalIngresos:0, sinConvertir:0, porCategoriaGasto:{}, porCategoriaIngreso:{}, detalleGastos:[], detalleIngresos:[] });
+  Object.keys(ledger).sort().reverse().forEach(dstr=>{
+    const mes = dstr.slice(0,7);
+    const d = ledger[dstr];
+    (d.entries||[]).forEach(e=>{
+      if(e.tipo==='transferencia') return;
+      if(!porMes[mes]) porMes[mes] = vacio();
+      const m = porMes[mes];
+      const ars = montoEnARS(e);
+      if(ars===null){ m.sinConvertir++; return; }
+      const cat = e.categoria || 'Sin categorizar';
+      if(e.tipo==='ingreso'){
+        m.totalIngresos += ars;
+        m.porCategoriaIngreso[cat] = (m.porCategoriaIngreso[cat]||0) + ars;
+        m.detalleIngresos.push({ dstr, e, ars });
+      } else {
+        m.totalGastos += ars;
+        m.porCategoriaGasto[cat] = (m.porCategoriaGasto[cat]||0) + ars;
+        m.detalleGastos.push({ dstr, e, ars });
+      }
+    });
+  });
+  return porMes;
+}
+
+function calcularDatosDeMes(mes, porMesYaAgrupado){
+  const porMes = porMesYaAgrupado || agruparPorMes();
+  return porMes[mes] || { totalGastos:0, totalIngresos:0, sinConvertir:0, porCategoriaGasto:{}, porCategoriaIngreso:{}, detalleGastos:[], detalleIngresos:[] };
+}
+
+function renderResumenMensual(){
+  const cont = document.getElementById('resumenMensualContainer');
+  const mesActual = today.slice(0,7);
+  const meses = mesesConDatos();
+  if(!meses.includes(mesActual)) meses.unshift(mesActual);
+  const porMes = agruparPorMes(); // una sola pasada para todos los meses
+
+  cont.innerHTML = '';
+  meses.forEach(mes=>{
+    const id = mes.replace('-','');
+    const [anio, mesNum] = mes.split('-');
+    const datos = calcularDatosDeMes(mes, porMes);
+    const neto = datos.totalIngresos - datos.totalGastos;
+
+    const det = document.createElement('details');
+    det.open = (mes === mesActual);
+    det.style.marginBottom = '10px';
+    det.innerHTML = `
+      <summary class="eyebrow" style="cursor:pointer; text-transform:capitalize; font-size:13px;">${NOMBRES_MES[parseInt(mesNum,10)-1]} ${anio}</summary>
+      <div class="mono" style="text-align:right; font-size:17px; font-weight:600; margin:6px 0 14px; color:${neto>=0?'var(--ingreso)':'var(--gasto)'};">
+        ${neto>=0?'+':''}$${neto.toLocaleString('es-AR')}${datos.sinConvertir>0 ? ` <span class="usd-eq" style="color:var(--danger);">(+${datos.sinConvertir} sin convertir)</span>` : ''}
+      </div>
+      <div style="padding-left:2px;">
+        <div class="eyebrow" style="margin-bottom:8px;">Gastos por categoría</div>
+        <div id="resCatGastos-${id}"></div>
+        <div class="eyebrow" style="margin:14px 0 8px;">Ingresos por categoría</div>
+        <div id="resCatIngresos-${id}"></div>
+        <details style="margin-top:14px;">
+          <summary class="eyebrow" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+            <span>Ingresos del mes — detalle</span>
+            <span class="mono" style="color:var(--ingreso); text-transform:none; letter-spacing:0;">$${datos.totalIngresos.toLocaleString('es-AR')}</span>
+          </summary>
+          <div id="resDetIngresos-${id}" style="margin-top:8px;"></div>
+        </details>
+        <details style="margin-top:10px;">
+          <summary class="eyebrow" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+            <span>Gastos del mes — detalle</span>
+            <span class="mono" style="color:var(--gasto); text-transform:none; letter-spacing:0;">$${datos.totalGastos.toLocaleString('es-AR')}</span>
+          </summary>
+          <div id="resDetGastos-${id}" style="margin-top:8px;"></div>
+        </details>
+      </div>
+    `;
+    cont.appendChild(det);
+    const poblarContenidoMes = ()=>{
+      if(det.dataset.poblado) return;
+      det.dataset.poblado = '1';
+      renderCategoriaBreakdown('resCatGastos-'+id, datos.porCategoriaGasto);
+      renderCategoriaBreakdown('resCatIngresos-'+id, datos.porCategoriaIngreso);
+      renderDetalleMovimientos('resDetIngresos-'+id, datos.detalleIngresos, 'var(--ingreso)');
+      renderDetalleMovimientos('resDetGastos-'+id, datos.detalleGastos, 'var(--gasto)');
+    };
+    if(det.open) poblarContenidoMes();
+    det.addEventListener('toggle', ()=>{ if(det.open) poblarContenidoMes(); });
+  });
+}
+
+function renderDetalleMovimientos(elId, lista, color){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(lista.length===0){
+    el.innerHTML = '<div class="empty">Sin movimientos este mes.</div>';
+    return;
+  }
+  el.innerHTML = lista.map(({dstr, e, ars})=>{
+    const monto = ars===null
+      ? `${e.moneda||'ARS'} ${e.amount.toLocaleString('es-AR')}`
+      : '$' + Math.round(ars).toLocaleString('es-AR');
+    return `
+      <div style="padding:7px 0; border-bottom:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:13px;">
+          <span>${dstr} · ${e.categoria || 'Sin categorizar'}${e.subcategoria ? ' · '+e.subcategoria : ''}</span>
+          <span class="mono" style="color:${color}; flex-shrink:0;">${monto}</span>
+        </div>
+        ${e.nota ? `<div class="entry-cat" style="margin-top:2px;">${e.nota}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// aviso si hace mucho que no se descarga un respaldo JSON
+function diasDesdeUltimoRespaldo(){
+  const raw = localStorage.getItem('ficha-gastos-ultimo-respaldo');
+  if(!raw) return null;
+  return Math.floor((Date.now() - Number(raw)) / (1000*60*60*24));
+}
+function renderBackupWarning(){
+  const badge = document.getElementById('respaldoBadge');
+  const tabBadge = document.getElementById('ajustesBadge');
+  if(!badge) return;
+  const hayDatos = Object.keys(ledger).length > 0;
+  if(!hayDatos){
+    badge.style.display = 'none';
+    if(tabBadge) tabBadge.style.display = 'none';
+    return;
+  }
+  const dias = diasDesdeUltimoRespaldo();
+  let texto = null;
+  if(dias === null) texto = '!';
+  else if(dias >= 14) texto = dias > 99 ? '99+' : String(dias);
+
+  badge.style.display = texto ? 'flex' : 'none';
+  badge.textContent = texto || '';
+  if(tabBadge){
+    tabBadge.style.display = texto ? 'flex' : 'none';
+    tabBadge.textContent = texto || '';
+  }
+}
+
+function empezarEdicion(dstr, id){
+  const entry = dayEntry(dstr).entries.find(e=>e.id===id);
+  if(!entry) return;
+  editing = { dstr, id };
+  tipo = entry.tipo || 'gasto';
+  metodo = entry.metodo || metodosActuales()[0].id;
+  categoria = entry.categoria || null;
+  subcategoria = entry.subcategoria || '';
+  categoriaSugerida = null;
+  moneda = entry.moneda || 'ARS';
+  cuenta = entry.cuenta || '';
+  cuentaDestino = entry.cuentaDestino || '';
+  cotizacionManual = '';
+  document.getElementById('amountInput').value = entry.amount;
+  document.getElementById('notaInput').value = entry.nota || '';
+  document.getElementById('fechaFicharInput').value = dstr;
+  document.getElementById('ficharBtn').textContent = 'Guardar cambios';
+  document.getElementById('cancelEditBtn').style.display = 'block';
+  render();
+  const tabFicharBtn = document.querySelector('.tab-btn[data-tab="fichar"]');
+  if(tabFicharBtn && !tabFicharBtn.classList.contains('active')) tabFicharBtn.click();
+  document.getElementById('amountInput').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+function cancelarEdicion(){
+  editing = null;
+  resetearMontoYNota();
+  resetearCategoria();
+  cuentaDestino = '';
+  document.getElementById('fechaFicharInput').value = today;
+  document.getElementById('ficharBtn').textContent = 'Fichar movimiento';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  render();
+}
+
+function borrarMovimiento(dstr, id){
+  const d = dayEntry(dstr);
+  ledger[dstr] = { entries: d.entries.filter(e=>e.id!==id), noSpend: d.noSpend };
+  saveLedger(ledger);
+  pendingDelete = null;
+  if(editing && editing.dstr===dstr && editing.id===id) cancelarEdicion();
+  render();
+}
+
+// normaliza lo que se tipea en el monto: coma o punto siempre significan "separador decimal",
+// nunca separador de miles, y solo se permite uno. Cualquier otro carácter se descarta.
+function sanitizarMonto(raw){
+  let s = raw.replace(',', '.');
+  s = s.replace(/[^\d.]/g, '');
+  const partes = s.split('.');
+  if(partes.length > 2){
+    s = partes[0] + '.' + partes.slice(1).join('');
+  }
+  const puntoIdx = s.indexOf('.');
+  if(puntoIdx !== -1 && s.length - puntoIdx - 1 > 2){
+    s = s.slice(0, puntoIdx + 3);
+  }
+  return s;
+}
+
+// igual que sanitizarMonto, pero permite un signo "-" adelante (saldos en descubierto)
+function sanitizarMontoConSigno(raw){
+  const negativo = raw.trim().startsWith('-');
+  const limpio = sanitizarMonto(raw);
+  return (negativo && limpio) ? '-' + limpio : limpio;
+}
+
+// el teclado numérico del teléfono no tiene tecla de "-", así que el signo se invierte con un botón aparte
+function alternarSigno(inputEl){
+  if(inputEl.value.startsWith('-')) inputEl.value = inputEl.value.slice(1);
+  else inputEl.value = '-' + inputEl.value;
+  inputEl.dispatchEvent(new Event('input', { bubbles:true }));
+  inputEl.focus();
+}
+
+document.getElementById('amountInput').addEventListener('input', (ev)=>{
+  const limpio = sanitizarMontoConSigno(ev.target.value);
+  if(limpio !== ev.target.value) ev.target.value = limpio;
+  renderForm();
+});
+document.getElementById('amountSignoBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('amountInput');
+  alternarSigno(input);
+  renderForm();
+});
+
+document.getElementById('manualRateInput').addEventListener('input', (ev)=>{
+  const limpio = sanitizarMonto(ev.target.value);
+  if(limpio !== ev.target.value) ev.target.value = limpio;
+  cotizacionManual = limpio;
+});
+
+document.getElementById('cancelEditBtn').addEventListener('click', cancelarEdicion);
+
+function validarFichada(){
+  const amountInput = document.getElementById('amountInput');
+  const montoVal = Math.abs(parseFloat(amountInput.value));
+  const montoValido = !!montoVal && montoVal > 0;
+  const errores = [];
+  const camposError = [];
+
+  if(!tipo){
+    errores.push('elegir Gasto, Ingreso o Traspaso');
+    camposError.push('tipoRow');
+  }
+  if(!montoValido){
+    camposError.push('amountInput');
+  }
+  if(tipo==='transferencia'){
+    if(!cuenta){ errores.push('elegir la cuenta de origen'); camposError.push('cuentaOrigenSelect'); }
+    if(!cuentaDestino){ errores.push('elegir la cuenta de destino'); camposError.push('cuentaDestinoSelect'); }
+    if(cuenta && cuentaDestino && cuenta===cuentaDestino){
+      errores.push('origen y destino tienen que ser distintos');
+      camposError.push('cuentaOrigenSelect'); camposError.push('cuentaDestinoSelect');
+    }
+  } else if(tipo==='gasto' || tipo==='ingreso'){
+    if(!metodo){ errores.push('elegir el método de pago'); camposError.push('methodsRow'); }
+    if(!cuenta){ errores.push('elegir la cuenta'); camposError.push('cuentaSelect'); }
+    if(!categoria){ errores.push('elegir la categoría'); camposError.push('catGrid'); }
+  }
+  return { errores, camposError, montoVal, montoValido };
+}
+
+document.getElementById('ficharBtn').addEventListener('click', async ()=>{
+  const amountInput = document.getElementById('amountInput');
+  const notaInput = document.getElementById('notaInput');
+
+  document.querySelectorAll('.campo-error').forEach(el=>el.classList.remove('campo-error'));
+  const { errores, camposError, montoVal, montoValido } = validarFichada();
+  if(errores.length > 0 || !montoValido){
+    camposError.forEach(id=>{ const el = document.getElementById(id); if(el) el.classList.add('campo-error'); });
+    document.getElementById('saveErr').textContent = errores.length>0 ? ('⚠ Falta: ' + errores.join(', ') + '.') : '';
+    return;
+  }
+  document.getElementById('saveErr').textContent = '';
+
+  const val = montoVal;
+  const esTransferencia = tipo==='transferencia';
+
+  await fetchFx(false); // recién acá se piden las cotizaciones, no antes
+
+  if(editing){
+    const d = dayEntry(editing.dstr);
+    const idx = d.entries.findIndex(e=>e.id===editing.id);
+    if(idx>-1){
+      const original = d.entries[idx];
+      const mismaMonedaConTasa = moneda===original.moneda && original.fxRateARS;
+      const nuevaTasa = moneda==='ARS' ? 1 : (mismaMonedaConTasa ? original.fxRateARS : tasaEfectiva(moneda));
+      const nuevoSnapshot = (original.fxSnapshot && original.fxSnapshot.USD) ? original.fxSnapshot : snapshotTasas();
+      const nuevaTasaUsd = original.usdRateAtEntry || nuevoSnapshot.USD || (moneda==='USD' ? nuevaTasa : null);
+      const entradaActualizada = {
+        ...original, amount: val, tipo, metodo: esTransferencia?null:metodo,
+        categoria: esTransferencia?null:categoria, subcategoria: esTransferencia?null:(subcategoria||null), moneda,
+        cuenta: cuenta||null, cuentaDestino: esTransferencia ? (cuentaDestino||null) : null,
+        fxRateARS: nuevaTasa, usdRateAtEntry: nuevaTasaUsd, fxSnapshot: nuevoSnapshot,
+        nota: notaInput.value.trim(), editedAt: new Date().toISOString()
+      };
+      const fechaNueva = document.getElementById('fechaFicharInput').value || editing.dstr;
+      if(fechaNueva !== editing.dstr){
+        // se cambió la fecha: sacarlo del día viejo y ponerlo en el nuevo
+        d.entries.splice(idx, 1);
+        ledger[editing.dstr] = d;
+        const destino = dayEntry(fechaNueva);
+        ledger[fechaNueva] = { entries: [...destino.entries, entradaActualizada], noSpend: false };
+      } else {
+        d.entries[idx] = entradaActualizada;
+        ledger[editing.dstr] = d;
+      }
+      saveLedger(ledger);
+    }
+    cancelarEdicion();
+    return;
+  }
+
+  const fechaElegida = document.getElementById('fechaFicharInput').value || today;
+  const cur = dayEntry(fechaElegida);
+  const tasaNueva = tasaEfectiva(moneda);
+  const snapshotNuevo = snapshotTasas();
+  ledger[fechaElegida] = {
+    entries: [...cur.entries, {
+      id: 'e'+Date.now()+Math.random().toString(36).slice(2,8), amount: val, tipo,
+      metodo: esTransferencia?null:metodo, categoria: esTransferencia?null:categoria, subcategoria: esTransferencia?null:(subcategoria||null), moneda,
+      cuenta: cuenta||null, cuentaDestino: esTransferencia ? (cuentaDestino||null) : null,
+      fxRateARS: tasaNueva, usdRateAtEntry: moneda==='USD' ? tasaNueva : snapshotNuevo.USD, fxSnapshot: snapshotNuevo,
+      nota: notaInput.value.trim(), time: new Date().toISOString()
+    }],
+    noSpend: false
+  };
+  saveLedger(ledger);
+  resetearMontoYNota();
+  resetearCategoria();
+  cotizacionManual = '';
+  document.getElementById('fechaFicharInput').value = today;
+  document.getElementById('manualRateInput').value = '';
+  document.getElementById('scanPreview').style.display = 'none';
+  document.getElementById('scanRawWrap').style.display = 'none';
+  document.getElementById('scanStatus').textContent = '';
+  render();
+});
+
+const CATEGORIA_KEYWORDS = [
+  ['Salud', ['farmacia','drogueria','farmacity']],
+  ['Transporte', ['ypf','shell','axion','puma energy','combustible','nafta','repuestos','lubricentro','taller','neumatico','peaje','sube']],
+  ['Vivienda/Servicios', ['ferreteria','pintureria','edenor','edesur','metrogas','aysa']],
+  ['Indumentaria', ['indumentaria','calzado','zapateria']],
+  ['Educación', ['libreria','editorial','instituto']],
+  ['Ocio', ['cine','bowling','entretenimiento']],
+  ['Comida', ['supermercado','super','almacen','mercado','kiosco','panaderia','carniceria','verduleria','fiambreria','dietetica','rotiseria','restaurant','resto','pizzeria','heladeria','dia %','carrefour','coto','jumbo']],
+];
+
+function normalizar(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+function sugerirCategoria(textoNorm){
+  for(const [cat, kws] of CATEGORIA_KEYWORDS){
+    if(kws.some(k=>textoNorm.includes(k))) return cat;
+  }
+  return null;
+}
+
+function sugerirMetodo(textoNorm){
+  if(textoNorm.includes('credito')) return 'credito';
+  if(textoNorm.includes('debito') || textoNorm.includes('tarjeta')) return 'debito';
+  if(textoNorm.includes('efectivo')) return 'efectivo';
+  return null;
+}
+
+// reconoce un comprobante de transferencia de Mercado Pago específicamente
+function esComprobanteMercadoPago(textoNorm){
+  const tieneMP = textoNorm.includes('mercado pago') || textoNorm.includes('mercadopago');
+  const tieneIndicio = textoNorm.includes('comprobante') || textoNorm.includes('cvu') || textoNorm.includes('transferencia');
+  return tieneMP && tieneIndicio;
+}
+
+// extrae los nombres de "De" y "Para" en un comprobante de transferencia, para dejarlos como nota
+function extraerPersonasTransferencia(texto){
+  const lineas = texto.split('\n').map(l=>l.trim()).filter(Boolean);
+  let de = null, para = null;
+  for(let i=0; i<lineas.length; i++){
+    const l = lineas[i].toLowerCase().replace(/[^a-záéíóúñ]/g,'');
+    if(l === 'de' && lineas[i+1]) de = lineas[i+1];
+    if(l === 'para' && lineas[i+1]) para = lineas[i+1];
+  }
+  return { de, para };
+}
+
+function extraerNumeros(str){
+  const matches = str.match(/\d+(?:[.,]\d{3})*(?:[.,]\d{2})?/g) || [];
+  return matches.map(m=>{
+    let s = m;
+    if(/[.,]/.test(s)){
+      const lastComma = s.lastIndexOf(',');
+      const lastDot = s.lastIndexOf('.');
+      const decSep = Math.max(lastComma, lastDot);
+      if(decSep>-1 && s.length-decSep-1<=2 && s.length-decSep-1>0){
+        s = s.slice(0,decSep).replace(/[.,]/g,'') + '.' + s.slice(decSep+1);
+      } else {
+        s = s.replace(/[.,]/g,'');
+      }
+    }
+    return parseFloat(s);
+  }).filter(n=>!isNaN(n) && n>0 && n<10000000);
+}
+
+function extraerMonto(texto){
+  const lineas = texto.split('\n').map(l=>l.trim()).filter(Boolean);
+  const candidatosTotal = [];
+  for(const linea of lineas){
+    const norm = normalizar(linea);
+    if(/\btotal\b/.test(norm) && !/subtotal/.test(norm)){
+      candidatosTotal.push(...extraerNumeros(linea));
+    }
+  }
+  if(candidatosTotal.length) return Math.max(...candidatosTotal);
+  const todos = extraerNumeros(texto);
+  return todos.length ? Math.max(...todos) : null;
+}
+
+document.getElementById('scanBtn').addEventListener('click', ()=>{
+  document.getElementById('ticketInput').click();
+});
+
+function downscaleImagen(dataUrl, maxAncho){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      let { width, height } = img;
+      if(width > maxAncho){
+        height = Math.round(height * (maxAncho / width));
+        width = maxAncho;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = ()=>resolve(dataUrl); // si falla el redimensionado, se usa la original
+    img.src = dataUrl;
+  });
+}
+
+document.getElementById('ticketInput').addEventListener('change', async (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+
+  const scanBtn = document.getElementById('scanBtn');
+  const status = document.getElementById('scanStatus');
+  const preview = document.getElementById('scanPreview');
+  const thumb = document.getElementById('scanThumb');
+
+  const dataUrl = await new Promise(res=>{
+    const reader = new FileReader();
+    reader.onload = e=>res(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  thumb.src = dataUrl;
+  preview.style.display = 'flex';
+
+  scanBtn.disabled = true;
+  status.textContent = 'Descargando el lector (primera vez)…';
+
+  try{
+    if(typeof Tesseract === 'undefined'){
+      await cargarScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    }
+    status.textContent = 'Leyendo ticket… puede tardar unos segundos.';
+    const imagenParaOcr = await downscaleImagen(dataUrl, 1000);
+    const worker = await Tesseract.createWorker('spa');
+    const { data: { text } } = await worker.recognize(imagenParaOcr);
+    await worker.terminate();
+    const textoNorm = normalizar(text);
+
+    tipo = 'gasto';
+    metodo = sugerirMetodo(textoNorm) || metodosActuales()[0].id;
+    categoriaSugerida = sugerirCategoria(textoNorm);
+    categoria = null;
+    subcategoria = '';
+
+    if(esComprobanteMercadoPago(textoNorm)){
+      tipo = null; // un comprobante de MP puede ser un pago tuyo o un cobro: que lo elijas vos
+      metodo = 'transferencia';
+      cuenta = 'Mercado Pago';
+      const { de, para } = extraerPersonasTransferencia(text);
+      if(de || para){
+        document.getElementById('notaInput').value = [de && `De: ${de}`, para && `Para: ${para}`].filter(Boolean).join(' — ');
+      }
+    }
+
+    const montoDetectado = extraerMonto(text);
+    const amountInput = document.getElementById('amountInput');
+    if(montoDetectado){
+      amountInput.value = montoDetectado;
+      status.textContent = 'Monto detectado: revisalo antes de fichar.';
+    } else {
+      amountInput.value = '';
+      status.textContent = 'No pude detectar el monto. Escribilo a mano.';
+    }
+
+    document.getElementById('scanRawWrap').style.display = 'block';
+    document.getElementById('scanRawText').textContent = text.trim() || '(sin texto legible)';
+
+    render();
+  }catch(err){
+    console.error('Error de OCR:', err);
+    status.textContent = 'Falló la lectura (' + (err && err.message ? err.message : String(err)) + ').';
+  }finally{
+    scanBtn.disabled = false;
+    ev.target.value = '';
+  }
+});
+
+document.getElementById('noSpendBtn').addEventListener('click', ()=>{
+  const cur = dayEntry(today);
+  ledger[today] = { entries: cur.entries, noSpend: true };
+  saveLedger(ledger);
+  render();
+});
+
+function downloadBlob(content, filename, type){
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function csvField(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }
+
+// arma las filas de datos, compartidas entre el export a CSV y el export a Excel real
+function construirFilasExport(){
+  const rows = [['fecha','hora','tipo','categoria','subcategoria','moneda','monto_original','monto_ars','equivalente_usd','cotizacion_usd_al_momento','metodo','cuenta','cuenta_destino','nota','sin_movimientos']];
+  Object.keys(ledger).sort().forEach(dstr=>{
+    const d = ledger[dstr];
+    if(d.noSpend && d.entries.length===0){
+      rows.push([dstr,'','','','','','','','','','','','','','SI']);
+    }
+    d.entries.forEach(e=>{
+      const time = new Date(e.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+      const usdEq = usdEquivalente(e);
+      const arsExport = montoEnARS(e);
+      const catExport = e.tipo==='transferencia' ? '—' : (e.categoria||'Sin categorizar (dato viejo)');
+      rows.push([dstr, time, e.tipo||'gasto', catExport, e.subcategoria||'', e.moneda||'ARS', e.amount, arsExport===null?'':arsExport, usdEq!==null?Number(usdEq.toFixed(2)):'', e.usdRateAtEntry||'', e.metodo||'', e.cuenta||'', e.cuentaDestino||'', e.nota||'', '']);
+    });
+  });
+  return rows;
+}
+
+document.getElementById('exportXlsxBtn').addEventListener('click', async ()=>{
+  try{
+    if(typeof XLSX === 'undefined'){
+      await cargarScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    }
+    const rows = construirFilasExport();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:11},{wch:8},{wch:8},{wch:22},{wch:20},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:10},{wch:16},{wch:16},{wch:24},{wch:8}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+    XLSX.writeFile(wb, 'movimientos-de-caja.xlsx');
+  }catch(err){
+    console.error('Error al generar Excel:', err);
+    alert('No se pudo generar el Excel en este entorno. Probá desde el ícono de tu teléfono, no desde la vista previa del chat.');
+  }
+});
+
+document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+  const rows = construirFilasExport();
+  const csv = rows.map(r=>r.map(csvField).join(',')).join('\n');
+  downloadBlob('\uFEFF' + csv, 'ficha-gastos.csv', 'text/csv;charset=utf-8');
+});
+
+// valida que un objeto tenga la forma real de un ledger (fechas -> {entries:[...]}), no cualquier JSON
+function tieneFormaDeLedger(obj){
+  if(!obj || typeof obj!=='object' || Array.isArray(obj)) return false;
+  const claves = Object.keys(obj);
+  if(claves.length===0) return true; // un ledger vacío también es válido
+  return claves.every(k=>{
+    const v = obj[k];
+    return /^\d{4}-\d{2}-\d{2}$/.test(k) && v && typeof v==='object' && Array.isArray(v.entries);
+  });
+}
+
+// acepta tanto el formato nuevo (con cuentas/saldos incluidos) como el viejo (solo el ledger, sin envoltorio)
+function validarRespaldo(data){
+  if(data && typeof data==='object' && !Array.isArray(data) && data.ledger && tieneFormaDeLedger(data.ledger)){
+    return {
+      ledger: data.ledger,
+      saldosIniciales: (data.saldosIniciales && typeof data.saldosIniciales==='object') ? data.saldosIniciales : null,
+      cuentasControladas: Array.isArray(data.cuentasControladas) ? data.cuentasControladas : null,
+      historialControl: Array.isArray(data.historialControl) ? data.historialControl : null,
+      ultimoControl: (typeof data.ultimoControl==='string') ? data.ultimoControl : null,
+      monedaVisualizacion: (typeof data.monedaVisualizacion==='string') ? data.monedaVisualizacion : null,
+      tileMonedas: Array.isArray(data.tileMonedas) ? data.tileMonedas : null,
+    };
+  }
+  if(tieneFormaDeLedger(data)){
+    return { ledger: data, saldosIniciales: null, cuentasControladas: null, historialControl: null, ultimoControl: null, monedaVisualizacion: null, tileMonedas: null };
+  }
+  return null;
+}
+
+document.getElementById('exportJsonBtn').addEventListener('click', ()=>{
+  let historialControl = [];
+  try{ historialControl = JSON.parse(localStorage.getItem('ficha-gastos-historial-control') || '[]'); }catch(e){}
+  const paquete = {
+    version: 1,
+    exportadoEl: new Date().toISOString(),
+    ledger,
+    saldosIniciales,
+    cuentasControladas,
+    historialControl,
+    ultimoControl: localStorage.getItem('ficha-gastos-ultimo-control') || null,
+    monedaVisualizacion,
+    tileMonedas,
+  };
+  downloadBlob(JSON.stringify(paquete, null, 2), 'ficha-gastos-respaldo.json', 'application/json');
+  try{ localStorage.setItem('ficha-gastos-ultimo-respaldo', String(Date.now())); }catch(e){}
+  renderBackupWarning();
+});
+
+document.getElementById('importFile').addEventListener('change', (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    let data;
+    try{
+      data = JSON.parse(e.target.result);
+    }catch(err){
+      alert('Ese archivo no es un JSON válido.');
+      ev.target.value = '';
+      return;
+    }
+
+    const validado = validarRespaldo(data);
+    if(!validado){
+      alert('Ese archivo no tiene la forma de un respaldo válido de esta ficha. No se tocó ningún dato.');
+      ev.target.value = '';
+      return;
+    }
+
+    const diasNuevos = Object.keys(validado.ledger).length;
+    const diasActuales = Object.keys(ledger).length;
+    const confirmado = confirm(
+      `Vas a reemplazar TODOS los datos actuales (${diasActuales} días cargados) por los del archivo (${diasNuevos} días). ` +
+      `Esta acción no se puede deshacer. ¿Confirmás?`
+    );
+    if(!confirmado){ ev.target.value = ''; return; }
+
+    ledger = validado.ledger;
+    saveLedger(ledger);
+
+    if(validado.saldosIniciales){
+      saldosIniciales = validado.saldosIniciales;
+      guardarSaldosIniciales(saldosIniciales);
+    }
+    if(validado.cuentasControladas){
+      cuentasControladas = validado.cuentasControladas;
+      guardarCuentasControladas();
+    }
+    if(validado.historialControl){
+      try{ localStorage.setItem('ficha-gastos-historial-control', JSON.stringify(validado.historialControl)); }catch(err){}
+    }
+    if(validado.ultimoControl){
+      try{ localStorage.setItem('ficha-gastos-ultimo-control', validado.ultimoControl); }catch(err){}
+    }
+    if(validado.monedaVisualizacion){
+      monedaVisualizacion = validado.monedaVisualizacion;
+      try{ localStorage.setItem('ficha-gastos-moneda-vis', monedaVisualizacion); }catch(err){}
+    }
+    if(validado.tileMonedas){
+      tileMonedas = validado.tileMonedas;
+      try{ localStorage.setItem('ficha-gastos-tiles', JSON.stringify(tileMonedas)); }catch(err){}
+    }
+
+    render();
+    renderControlBadge();
+    renderFx();
+    renderMonedaVisSelect();
+    const faltaba = !validado.saldosIniciales || !validado.cuentasControladas;
+    alert('Respaldo restaurado correctamente.' + (faltaba ? ' (Era un respaldo del formato anterior: los movimientos volvieron bien, pero saldos iniciales y cuentas quedaron como estaban en este dispositivo.)' : ''));
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+});
+
+function renderPinConfig(){
+  const wrap = document.getElementById('pinConfigWrap');
+  if(!wrap) return;
+  if(!pinConfigurado()){
+    wrap.innerHTML = `
+      <div class="entry-cat" style="margin-bottom:8px;">Sin PIN configurado. Cualquiera con el teléfono desbloqueado puede ver la ficha.</div>
+      <input type="password" inputmode="numeric" maxlength="6" id="pinNuevo" placeholder="Elegí un PIN (4 a 6 dígitos)" class="mono" style="margin-bottom:8px;" />
+      <input type="password" inputmode="numeric" maxlength="6" id="pinNuevoConfirmar" placeholder="Repetilo" class="mono" style="margin-bottom:8px;" />
+      <button class="btn-primary" id="pinGuardarBtn">Activar PIN</button>
+      <div class="warn" id="pinMsg"></div>
+    `;
+    document.getElementById('pinGuardarBtn').onclick = ()=>{
+      const a = document.getElementById('pinNuevo').value;
+      const b = document.getElementById('pinNuevoConfirmar').value;
+      const msg = document.getElementById('pinMsg');
+      if(a.length<4){ msg.textContent = 'Mínimo 4 dígitos.'; return; }
+      if(a!==b){ msg.textContent = 'Los dos PIN no coinciden.'; return; }
+      localStorage.setItem(PIN_KEY, hashPin(a));
+      renderPinConfig();
+    };
+  } else {
+    wrap.innerHTML = `
+      <div class="entry-cat" style="margin-bottom:8px; color:var(--ingreso);">✓ PIN activado.</div>
+      <button class="btn-secondary" id="pinCambiarBtn">Cambiar PIN</button>
+      <button class="btn-secondary" id="pinQuitarBtn" style="color:var(--gasto); border-color:var(--gasto);">Quitar PIN</button>
+      <div id="pinAccionWrap"></div>
+    `;
+    document.getElementById('pinCambiarBtn').onclick = ()=>{
+      document.getElementById('pinAccionWrap').innerHTML = `
+        <input type="password" inputmode="numeric" maxlength="6" id="pinActual" placeholder="PIN actual" class="mono" style="margin-top:8px; margin-bottom:8px;" />
+        <input type="password" inputmode="numeric" maxlength="6" id="pinNuevo2" placeholder="PIN nuevo (4 a 6 dígitos)" class="mono" style="margin-bottom:8px;" />
+        <button class="btn-primary" id="pinConfirmarCambio">Guardar nuevo PIN</button>
+        <div class="warn" id="pinMsg2"></div>
+      `;
+      document.getElementById('pinConfirmarCambio').onclick = ()=>{
+        const actual = document.getElementById('pinActual').value;
+        const nuevo = document.getElementById('pinNuevo2').value;
+        const msg = document.getElementById('pinMsg2');
+        if(hashPin(actual) !== localStorage.getItem(PIN_KEY)){ msg.textContent = 'PIN actual incorrecto.'; return; }
+        if(nuevo.length<4){ msg.textContent = 'Mínimo 4 dígitos.'; return; }
+        localStorage.setItem(PIN_KEY, hashPin(nuevo));
+        renderPinConfig();
+      };
+    };
+    document.getElementById('pinQuitarBtn').onclick = ()=>{
+      document.getElementById('pinAccionWrap').innerHTML = `
+        <input type="password" inputmode="numeric" maxlength="6" id="pinActualQuitar" placeholder="PIN actual, para confirmar" class="mono" style="margin-top:8px; margin-bottom:8px;" />
+        <button class="btn-secondary" id="pinConfirmarQuitar" style="color:#fff; background:var(--gasto); border-color:var(--gasto);">Sí, quitar el PIN</button>
+        <div class="warn" id="pinMsg3"></div>
+      `;
+      document.getElementById('pinConfirmarQuitar').onclick = ()=>{
+        const actual = document.getElementById('pinActualQuitar').value;
+        const msg = document.getElementById('pinMsg3');
+        if(hashPin(actual) !== localStorage.getItem(PIN_KEY)){ msg.textContent = 'PIN actual incorrecto.'; return; }
+        localStorage.removeItem(PIN_KEY);
+        renderPinConfig();
+      };
+    };
+  }
+}
+
+document.getElementById('fxRefreshBtn').addEventListener('click', ()=>{
+  document.getElementById('fxUpdated').textContent = 'Actualizando…';
+  fetchFx(true);
+});
+
+if(pinConfigurado()) mostrarCandado();
+document.getElementById('lockUnlockBtn').addEventListener('click', intentarDesbloquear);
+document.getElementById('lockPinInput').addEventListener('keydown', (ev)=>{
+  if(ev.key==='Enter') intentarDesbloquear();
+});
+
+render();
+renderFx();
+// la cotización ya no se pide sola al abrir la ficha: se pide al fichar o al entrar a "Hoy"
+document.getElementById('fechaFicharInput').value = today;
+document.getElementById('fechaFicharInput').max = today;
+function renderMonedaVisSelect(){
+  document.getElementById('monedaVisSelect').innerHTML = ordenAlfabetico(MONEDAS).map(m=>`<option value="${m}"${m===monedaVisualizacion?' selected':''}>${m}</option>`).join('');
+}
+renderMonedaVisSelect();
+document.getElementById('monedaVisSelect').addEventListener('change', (ev)=>{
+  monedaVisualizacion = ev.target.value;
+  try{ localStorage.setItem('ficha-gastos-moneda-vis', monedaVisualizacion); }catch(e){}
+  render();
+});
+renderResumenMensual();
+renderBackupWarning();
+
+// --- borrado de día / mes completo, con doble confirmación ---
+let pendingBorrarDia = null;
+let pendingBorrarMes = null;
+
+function contarMovimientosDia(dstr){
+  const d = ledger[dstr];
+  return d ? (d.entries||[]).length : 0;
+}
+function contarMovimientosMes(mes){
+  let count = 0;
+  Object.keys(ledger).forEach(dstr=>{ if(dstr.startsWith(mes)) count += (ledger[dstr].entries||[]).length; });
+  return count;
+}
+
+function renderBorrarDia(){
+  const wrap = document.getElementById('borrarDiaConfirm');
+  const input = document.getElementById('borrarDiaInput');
+  const dstr = input.value;
+  if(pendingBorrarDia === dstr && dstr){
+    const n = contarMovimientosDia(dstr);
+    wrap.innerHTML = `
+      <div class="warn" style="margin-bottom:6px;">Vas a borrar ${dstr} completo (${n} ${n===1?'movimiento':'movimientos'}). No se puede deshacer.</div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn-secondary" id="borrarDiaSi" style="flex:1; margin-top:0; padding:8px; font-size:12px; color:#fff; background:var(--gasto); border-color:var(--gasto);">Sí, borrar</button>
+        <button class="btn-secondary" id="borrarDiaNo" style="flex:1; margin-top:0; padding:8px; font-size:12px;">Cancelar</button>
+      </div>
+    `;
+    document.getElementById('borrarDiaSi').onclick = ()=>{
+      delete ledger[dstr];
+      saveLedger(ledger);
+      pendingBorrarDia = null;
+      renderBorrarDia();
+      render();
+    };
+    document.getElementById('borrarDiaNo').onclick = ()=>{ pendingBorrarDia = null; renderBorrarDia(); };
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+function renderBorrarMes(){
+  const wrap = document.getElementById('borrarMesConfirm');
+  const input = document.getElementById('borrarMesInput');
+  const mes = input.value;
+  if(pendingBorrarMes === mes && mes){
+    const n = contarMovimientosMes(mes);
+    wrap.innerHTML = `
+      <div class="warn" style="margin-bottom:6px;">Vas a borrar todo ${mes} (${n} ${n===1?'movimiento':'movimientos'} en total). No se puede deshacer.</div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn-secondary" id="borrarMesSi" style="flex:1; margin-top:0; padding:8px; font-size:12px; color:#fff; background:var(--gasto); border-color:var(--gasto);">Sí, borrar</button>
+        <button class="btn-secondary" id="borrarMesNo" style="flex:1; margin-top:0; padding:8px; font-size:12px;">Cancelar</button>
+      </div>
+    `;
+    document.getElementById('borrarMesSi').onclick = ()=>{
+      Object.keys(ledger).forEach(dstr=>{ if(dstr.startsWith(mes)) delete ledger[dstr]; });
+      saveLedger(ledger);
+      pendingBorrarMes = null;
+      renderBorrarMes();
+      render();
+    };
+    document.getElementById('borrarMesNo').onclick = ()=>{ pendingBorrarMes = null; renderBorrarMes(); };
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+document.getElementById('borrarDiaBtn').addEventListener('click', ()=>{
+  const dstr = document.getElementById('borrarDiaInput').value;
+  if(!dstr) return;
+  pendingBorrarDia = dstr;
+  renderBorrarDia();
+});
+document.getElementById('borrarDiaInput').addEventListener('change', ()=>{ pendingBorrarDia = null; renderBorrarDia(); });
+
+document.getElementById('borrarMesBtn').addEventListener('click', ()=>{
+  const mes = document.getElementById('borrarMesInput').value;
+  if(!mes) return;
+  pendingBorrarMes = mes;
+  renderBorrarMes();
+});
+document.getElementById('borrarMesInput').addEventListener('change', ()=>{ pendingBorrarMes = null; renderBorrarMes(); });
+
+// --- Control semanal: saldo calculado por cuenta vs. plata real ---
+function cargarSaldosIniciales(){
+  try{
+    const raw = localStorage.getItem('ficha-gastos-saldos-iniciales');
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function guardarSaldosIniciales(obj){
+  try{ localStorage.setItem('ficha-gastos-saldos-iniciales', JSON.stringify(obj)); }catch(e){}
+}
+
+function cargarCuentasControladas(){
+  try{
+    const raw = localStorage.getItem('ficha-gastos-cuentas-controladas');
+    return raw ? JSON.parse(raw) : [...BUCKETS_DEFAULT];
+  }catch(e){ return [...BUCKETS_DEFAULT]; }
+}
+function guardarCuentasControladas(){
+  try{ localStorage.setItem('ficha-gastos-cuentas-controladas', JSON.stringify(cuentasControladas)); }catch(e){}
+}
+
+// true si esa cuenta+moneda tiene al menos un movimiento fichado de verdad (no se puede sacar del control sin perder ese historial)
+function tieneMovimientos(key){
+  const idx = key.lastIndexOf('|');
+  const cta = key.slice(0, idx), mon = key.slice(idx+1);
+  let tiene = false;
+  Object.values(ledger).forEach(d=>{
+    (d.entries||[]).forEach(e=>{
+      const emon = e.moneda || 'ARS';
+      if(emon!==mon) return;
+      if(e.cuenta===cta || e.cuentaDestino===cta) tiene = true;
+    });
+  });
+  return tiene;
+}
+
+function bucketsActivos(){
+  const set = new Set(cuentasControladas);
+  Object.values(ledger).forEach(d=>{
+    (d.entries||[]).forEach(e=>{
+      const mon = e.moneda || 'ARS';
+      if(e.tipo==='transferencia'){
+        if(e.cuenta) set.add(e.cuenta+'|'+mon);
+        if(e.cuentaDestino) set.add(e.cuentaDestino+'|'+mon);
+      } else if(e.cuenta){
+        set.add(e.cuenta+'|'+mon);
+      }
+    });
+  });
+  Object.keys(saldosIniciales).forEach(k=>set.add(k));
+  return Array.from(set).sort();
+}
+
+function calcularSaldoCalculado(bucketKey){
+  const idx = bucketKey.lastIndexOf('|');
+  const cta = bucketKey.slice(0, idx), mon = bucketKey.slice(idx+1);
+  let total = saldosIniciales[bucketKey] || 0;
+  Object.values(ledger).forEach(d=>{
+    (d.entries||[]).forEach(e=>{
+      const emon = e.moneda || 'ARS';
+      if(emon !== mon) return;
+      if(e.tipo==='ingreso' && e.cuenta===cta) total += e.amount;
+      else if(e.tipo==='gasto' && e.cuenta===cta) total -= e.amount;
+      else if(e.tipo==='transferencia'){
+        if(e.cuenta===cta) total -= e.amount;
+        if(e.cuentaDestino===cta) total += e.amount;
+      }
+    });
+  });
+  return total;
+}
+
+function diasDesdeUltimoControl(){
+  const raw = localStorage.getItem('ficha-gastos-ultimo-control');
+  if(!raw) return null;
+  return Math.floor((Date.now() - Number(raw)) / (1000*60*60*24));
+}
+
+function renderControlBadge(){
+  const badge = document.getElementById('controlBadge');
+  const dias = diasDesdeUltimoControl();
+  const buckets = bucketsActivos();
+  if(buckets.length===0 || (dias!==null && dias<7)){
+    badge.style.display = 'none';
+  } else {
+    badge.style.display = 'flex';
+    badge.textContent = buckets.length > 9 ? '9+' : String(buckets.length);
+  }
+}
+
+let saldosRealesTmp = {};
+
+function renderControlTab(){
+  const dias = diasDesdeUltimoControl();
+  document.getElementById('controlUltimo').textContent =
+    dias===null ? 'Todavía no hiciste ningún control.' :
+    dias===0 ? 'Último control: hoy.' :
+    `Último control: hace ${dias} ${dias===1?'día':'días'}.`;
+  renderHistorialControl();
+
+  const buckets = bucketsActivos();
+  const list = document.getElementById('controlList');
+  if(buckets.length===0){
+    list.innerHTML = '<div class="empty">Todavía no hay cuentas con movimientos. Fichá algo primero.</div>';
+  } else {
+    list.innerHTML = '';
+    buckets.forEach(key=>{
+      const idx = key.lastIndexOf('|');
+      const cta = key.slice(0, idx), mon = key.slice(idx+1);
+      const calc = calcularSaldoCalculado(key);
+      const row = document.createElement('div');
+      row.className = 'control-row';
+      row.innerHTML = `
+        <div class="control-head">
+          <span>${cta} <span class="entry-cat">(${mon})</span></span>
+          <span class="semaforo" id="semaforo-${btoa(key).replace(/=/g,'')}">
+            <span class="luz roja"></span><span class="luz amarilla"></span><span class="luz verde"></span>
+          </span>
+          <span class="mono">esperado ${mon==='ARS'?'$':mon+' '}${calc.toLocaleString('es-AR')}</span>
+        </div>
+        <div style="display:flex; gap:6px; align-items:stretch;">
+          <div class="control-real-wrap" style="flex:1;">
+            <span class="control-real-label">Saldo real</span>
+            <span class="control-real-divider"></span>
+            <input type="text" inputmode="decimal" data-key="${key}" class="mono control-real-input" value="${saldosRealesTmp[key]!==undefined ? saldosRealesTmp[key] : ''}" />
+          </div>
+          <button type="button" class="signo-btn" data-signo-key="${key}" title="Poner en negativo">±</button>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+    list.querySelectorAll('.control-real-input').forEach(inp=>{
+      inp.addEventListener('input', (ev)=>{
+        const limpio = sanitizarMontoConSigno(ev.target.value);
+        if(limpio !== ev.target.value) ev.target.value = limpio;
+        saldosRealesTmp[ev.target.dataset.key] = ev.target.value;
+      });
+    });
+    list.querySelectorAll('.signo-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const key = btn.dataset.signoKey;
+        const input = list.querySelector(`.control-real-input[data-key="${key}"]`);
+        alternarSigno(input);
+        saldosRealesTmp[key] = input.value;
+      });
+    });
+  }
+
+}
+
+// --- Saldo inicial por cuenta: vive en Ajustes, con edición/borrado confirmados por fila ---
+let pendingEditSaldo = null;
+let pendingDeleteSaldo = null;
+
+function renderSaldoInicialTab(){
+  const saldoList = document.getElementById('saldoInicialList');
+  if(!saldoList) return;
+  saldoList.innerHTML = '';
+  const clavesSaldo = Array.from(new Set([...bucketsActivos(), ...Object.keys(saldosIniciales)])).sort();
+  if(clavesSaldo.length===0){
+    saldoList.innerHTML = '<div class="empty">Todavía no hay cuentas para configurar.</div>';
+  }
+  clavesSaldo.forEach(key=>{
+    const idx = key.lastIndexOf('|');
+    const cta = key.slice(0, idx), mon = key.slice(idx+1);
+    const valorActual = saldosIniciales[key] || 0;
+    const row = document.createElement('div');
+    row.className = 'saldo-inicial-row';
+
+    if(pendingDeleteSaldo===key){
+      const conMovimientos = tieneMovimientos(key);
+      if(conMovimientos){
+        row.innerHTML = `
+          <label style="color:var(--accent);">Esta cuenta ya tiene movimientos fichados — no se puede quitar del control sin perder ese historial. Se puede borrar el saldo inicial nomás.</label>
+          <button class="btn-secondary" data-act="solo-saldo" style="width:auto; margin-top:0; padding:6px 10px; font-size:11px; color:#fff; background:var(--gasto); border-color:var(--gasto);">Borrar solo el saldo</button>
+          <button class="btn-secondary" data-act="no" style="width:auto; margin-top:0; padding:6px 10px; font-size:11px;">Cancelar</button>
+        `;
+        row.querySelector('[data-act="solo-saldo"]').onclick = ()=>{
+          delete saldosIniciales[key];
+          guardarSaldosIniciales(saldosIniciales);
+          pendingDeleteSaldo = null;
+          renderSaldoInicialTab();
+          renderControlTab();
+        };
+      } else {
+        row.innerHTML = `
+          <label style="color:var(--gasto);">¿Sacar ${cta} (${mon}) del control? No tiene movimientos fichados todavía.</label>
+          <button class="btn-secondary" data-act="si" style="width:auto; margin-top:0; padding:6px 10px; font-size:11px; color:#fff; background:var(--gasto); border-color:var(--gasto);">Sí, sacarla</button>
+          <button class="btn-secondary" data-act="no" style="width:auto; margin-top:0; padding:6px 10px; font-size:11px;">Cancelar</button>
+        `;
+        row.querySelector('[data-act="si"]').onclick = ()=>{
+          delete saldosIniciales[key];
+          guardarSaldosIniciales(saldosIniciales);
+          cuentasControladas = cuentasControladas.filter(k=>k!==key);
+          guardarCuentasControladas();
+          pendingDeleteSaldo = null;
+          renderSaldoInicialTab();
+          renderControlTab();
+          renderControlBadge();
+        };
+      }
+      row.querySelector('[data-act="no"]').onclick = ()=>{ pendingDeleteSaldo = null; renderSaldoInicialTab(); };
+    } else if(pendingEditSaldo===key){
+      row.innerHTML = `
+        <label>${cta} (${mon})</label>
+        <input type="text" inputmode="decimal" class="mono saldo-inicial-input" value="${valorActual}" />
+        <button class="signo-btn" data-act="signo" style="width:32px; font-size:15px;" title="Poner en negativo">±</button>
+        <button class="btn-secondary" data-act="guardar" style="width:auto; margin-top:0; padding:6px 10px; font-size:11px; color:#fff; background:var(--accent); border-color:var(--accent);">Guardar</button>
+        <button class="btn-secondary" data-act="cancelar" style="width:auto; margin-top:0; padding:6px 10px; font-size:11px;">Cancelar</button>
+      `;
+      const input = row.querySelector('input');
+      input.addEventListener('input', (ev)=>{
+        const limpio = sanitizarMontoConSigno(ev.target.value);
+        if(limpio !== ev.target.value) ev.target.value = limpio;
+      });
+      row.querySelector('[data-act="signo"]').onclick = ()=>alternarSigno(input);
+      row.querySelector('[data-act="guardar"]').onclick = ()=>{
+        const val = parseFloat(input.value);
+        if(val && val!==0) saldosIniciales[key] = val; else delete saldosIniciales[key];
+        guardarSaldosIniciales(saldosIniciales);
+        pendingEditSaldo = null;
+        renderSaldoInicialTab();
+        renderControlTab();
+      };
+      row.querySelector('[data-act="cancelar"]').onclick = ()=>{ pendingEditSaldo = null; renderSaldoInicialTab(); };
+    } else {
+      row.innerHTML = `
+        <label>${cta} (${mon})</label>
+        <span class="mono" style="margin-right:4px;">${mon==='ARS'?'$':mon+' '}${valorActual.toLocaleString('es-AR')}</span>
+        <button class="btn-secondary" data-act="editar" style="width:auto; margin-top:0; padding:5px 8px; font-size:12px;" title="Editar">✏️</button>
+        <button class="btn-secondary" data-act="borrar" style="width:auto; margin-top:0; padding:5px 8px; font-size:12px; color:var(--gasto); border-color:var(--gasto);" title="Borrar">🗑</button>
+      `;
+      row.querySelector('[data-act="editar"]').onclick = ()=>{ pendingEditSaldo = key; pendingDeleteSaldo = null; renderSaldoInicialTab(); };
+      row.querySelector('[data-act="borrar"]').onclick = ()=>{ pendingDeleteSaldo = key; pendingEditSaldo = null; renderSaldoInicialTab(); };
+    }
+    saldoList.appendChild(row);
+  });
+}
+
+function encenderSemaforo(key, color){
+  const sem = document.getElementById('semaforo-'+btoa(key).replace(/=/g,''));
+  if(!sem) return;
+  sem.querySelectorAll('.luz').forEach(l=>l.classList.remove('on'));
+  if(color) sem.querySelector('.luz.'+color).classList.add('on');
+}
+
+function verificarControl(){
+  const buckets = bucketsActivos();
+  let faltan = 0, diferencias = 0, ok = 0;
+  buckets.forEach(key=>{
+    const crudo = saldosRealesTmp[key];
+    if(crudo===undefined || crudo===''){
+      encenderSemaforo(key, 'roja');
+      faltan++;
+      return;
+    }
+    const real = parseFloat(crudo);
+    if(isNaN(real)){
+      encenderSemaforo(key, 'amarilla');
+      faltan++;
+      return;
+    }
+    const calc = calcularSaldoCalculado(key);
+    const diff = real - calc;
+    if(Math.abs(diff) < 0.01){
+      encenderSemaforo(key, 'verde');
+      ok++;
+    } else {
+      encenderSemaforo(key, 'amarilla');
+      diferencias++;
+    }
+  });
+  const resumen = document.getElementById('controlResumen');
+  if(faltan>0){
+    resumen.style.color = 'var(--accent)';
+    resumen.textContent = `Faltan ${faltan} cuenta${faltan===1?'':'s'} por completar.`;
+  } else if(diferencias>0){
+    resumen.style.color = 'var(--gasto)';
+    resumen.textContent = `${diferencias} cuenta${diferencias===1?'':'s'} con diferencia. Revisá si te falta fichar algo.`;
+  } else {
+    resumen.style.color = 'var(--ingreso)';
+    resumen.textContent = `Todo coincide (${ok} de ${buckets.length}).`;
+    localStorage.setItem('ficha-gastos-ultimo-control', String(Date.now()));
+    guardarHistorialControl(today, buckets.length);
+    renderControlBadge();
+  }
+  return faltan===0 && diferencias===0;
+}
+
+function guardarHistorialControl(fecha, cantidadCuentas){
+  try{
+    const raw = localStorage.getItem('ficha-gastos-historial-control');
+    const hist = raw ? JSON.parse(raw) : [];
+    hist.unshift({ fecha, cuentas: cantidadCuentas });
+    localStorage.setItem('ficha-gastos-historial-control', JSON.stringify(hist.slice(0, 52))); // hasta 1 año de controles semanales
+    renderHistorialControl();
+  }catch(e){}
+}
+
+function renderHistorialControl(){
+  const el = document.getElementById('historialControlList');
+  if(!el) return;
+  try{
+    const raw = localStorage.getItem('ficha-gastos-historial-control');
+    const hist = raw ? JSON.parse(raw) : [];
+    if(hist.length===0){ el.innerHTML = '<div class="empty">Todavía no hay controles guardados.</div>'; return; }
+    el.innerHTML = hist.map(h=>`
+      <div class="history-row" style="cursor:default;">
+        <span class="mono">${h.fecha}</span>
+        <span style="color:var(--ingreso);">✓ ${h.cuentas} cuentas coincidieron</span>
+      </div>
+    `).join('');
+  }catch(e){}
+}
+
+document.getElementById('guardarControlBtn').addEventListener('click', ()=>{
+  const todoOk = verificarControl();
+  if(todoOk){
+    saldosRealesTmp = {};
+    setTimeout(()=>{ renderControlTab(); renderControlBadge(); }, 1200);
+  }
+});
+
+document.getElementById('nuevaCuentaSelect').innerHTML = ordenAlfabetico(CUENTAS).map(c=>`<option value="${c}">${c}</option>`).join('');
+document.getElementById('nuevaMonedaSelect').innerHTML = ordenAlfabetico(MONEDAS).map(m=>`<option value="${m}"${m==='ARS'?' selected':''}>${m}</option>`).join('');
+document.getElementById('agregarCuentaBtn').addEventListener('click', ()=>{
+  const cta = document.getElementById('nuevaCuentaSelect').value;
+  const mon = document.getElementById('nuevaMonedaSelect').value;
+  const key = cta+'|'+mon;
+  if(!cuentasControladas.includes(key)){
+    cuentasControladas.push(key);
+    guardarCuentasControladas();
+  }
+  renderSaldoInicialTab();
+  renderControlBadge();
+});
+
+// revisa cada minuto si cambió el día real, por si la app queda abierta cruzando la medianoche
+setInterval(()=>{
+  const actual = dateStr(0);
+  if(actual !== today){
+    const historialEnHoy = (historialAbierto === today);
+    const fechaFicharDefault = (document.getElementById('fechaFicharInput').value === today);
+    today = actual;
+    document.getElementById('fechaFicharInput').max = today;
+    if(historialEnHoy) historialAbierto = today;
+    if(fechaFicharDefault) document.getElementById('fechaFicharInput').value = today;
+    render();
+  }
+}, 60000);
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+    document.getElementById('tab-'+btn.dataset.tab).style.display='block';
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    window.scrollTo({top:0, behavior:'instant'});
+    if(btn.dataset.tab==='movimientos') fetchFx(false);
+    if(btn.dataset.tab==='control') renderControlTab();
+    if(btn.dataset.tab==='ajustes'){ renderSaldoInicialTab(); renderPinConfig(); }
+  });
+});
+</script>
+</body>
+</html>
